@@ -9,6 +9,7 @@
 /**
  * 
  */
+
 UCLASS()
 class VCELLSWAR_API AMainGameGameState : public AGameStateBase
 {
@@ -16,16 +17,38 @@ class VCELLSWAR_API AMainGameGameState : public AGameStateBase
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMapSeedReplicated, int32, ReplicatedSeed);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnMapSeedReplicated, int32, ReplicatedSeed, int32, ReplicatedSize, int32, ReplicatedAllPlayerCount);
+	
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FReplicatedAllNodesCountOnInit, int32, AllNodesCountOnInit);
 
 	UPROPERTY(BlueprintAssignable, Category = "Strategy | Map")
 	FOnMapSeedReplicated OnMapSeedReplicatedBP;
 	
+	UPROPERTY(BlueprintAssignable, Category = "Strategy | Map")
+	FReplicatedAllNodesCountOnInit ReplicatedAllNodesCountOnInit;	
 	
 	UPROPERTY(ReplicatedUsing = OnRep_MapSeed, BlueprintReadOnly, Category = "Map")
 	int32 MapSeed =-1;
+	
+	UPROPERTY(ReplicatedUsing = OnRep_MapSize, BlueprintReadOnly, Category = "Map")
+	int32 MapSize;
+	
+	UPROPERTY(ReplicatedUsing = OnRep_AllPlayerCount, BlueprintReadOnly, Category = "Match Setup")
+	int32 AllPlayerCount = 2;
+	
+	UPROPERTY(ReplicatedUsing = OnRep_AllNodesCountOnInit, BlueprintReadOnly, Category = "Map")
+	int32 AllNodesCountOnInit = 0;
 
 	UFUNCTION()
 	void OnRep_MapSeed();
+	
+	UFUNCTION()
+	void OnRep_MapSize(); 
+	
+	UFUNCTION()
+	void OnRep_AllPlayerCount(); 
+	
+	UFUNCTION()
+	void OnRep_AllNodesCountOnInit(); 
 	
 };

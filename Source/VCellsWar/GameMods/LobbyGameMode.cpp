@@ -51,6 +51,8 @@ void ALobbyGameMode::TryAssignColorToPlayer(AController* PlayerController, FLine
 		// Так как переменная TeamColor в PlayerState помечена как Replicated, 
 		// она автоматически улетит ко всем клиентам, и их UI обновится.
 	}
+	
+	CallUpdatePlayerListOnAllPlayers();
 }
 
 bool ALobbyGameMode::CheckAllPlayersReady()
@@ -93,6 +95,12 @@ void ALobbyGameMode::StartMatch(const FString& MapPath)
 			// Забираем число нод, выбранное в ComboBox, и консервируем в подсистему перед сносом карты лобби
 			StatsSubsystem->NodesPerPlayer = LobbyGS->GetNodeCount();
 			StatsSubsystem->MapSeed = LobbyGS->GetMapSeed();
+			
+			StatsSubsystem->NodesPositions = LobbyGS->GetNodePositions();
+			StatsSubsystem->MapSize = LobbyGS->GetMapSize();
+			
+			StatsSubsystem->AllPlayerCount = GameState->PlayerArray.Num() < 2 ? 2 : GameState->PlayerArray.Num();//to do + AI?
+			
 		}		
 		
 		
@@ -123,6 +131,23 @@ void ALobbyGameMode::StartMatch(const FString& MapPath)
 	}
 }
 
+void ALobbyGameMode::CallUpdatePlayerListOnAllPlayers()
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* BasePC = It->Get();
+			
+		ALobbyPlayerController* LobbyPC = Cast<ALobbyPlayerController>(BasePC);
+			
+		if (LobbyPC)
+		{
+			// Мы можем вызвать кастомную Client-RPC функцию в вашем PlayerController, 
+			// которая заставит локальный UI игрока перерисовать список участников лобби.
+			LobbyPC->Client_RefreshLobbyUI_PlayerList();
+		}
+	}
+}
+
 void ALobbyGameMode::OnPostLogin(AController* NewPlayer)
 {
 	Super::OnPostLogin(NewPlayer);
@@ -139,19 +164,7 @@ void ALobbyGameMode::OnPostLogin(AController* NewPlayer)
 		// 4. Оповещаем UI всех клиентов об обновлении списка игроков.
 		// Так как GameMode живет только на сервере, мы не можем напрямую вызвать функцию виджета.
 		// Вместо этого мы перебираем всех уже подключенных игроков через их PlayerController'ы
-		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-		{
-			APlayerController* BasePC = It->Get();
-			
-			ALobbyPlayerController* LobbyPC = Cast<ALobbyPlayerController>(BasePC);
-			
-			if (LobbyPC)
-			{
-				// Мы можем вызвать кастомную Client-RPC функцию в вашем PlayerController, 
-				// которая заставит локальный UI игрока перерисовать список участников лобби.
-				LobbyPC->Client_RefreshLobbyUI_PlayerList();
-			}
-		}
+		CallUpdatePlayerListOnAllPlayers();
         
 		/* 
 		   ПРИМЕЧАНИЕ ДЛЯ ПЕРЕХОДА ИЗ МАТЧА В МАТЧ:

@@ -32,7 +32,19 @@ struct FFactionColorRow : public FTableRowBase
     //FText ColorDisplayName;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Strategy Colors")
-    FLinearColor ColorValue;
+    FLinearColor ColorValue = FLinearColor::White;
+};
+
+USTRUCT(BlueprintType)
+struct FMapSizeRow : public FTableRowBase
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FText SizeDisplayName = FText::GetEmpty();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 SizeValue = 0;
 };
 
 // Первый аргумент: имя нового типа делегата

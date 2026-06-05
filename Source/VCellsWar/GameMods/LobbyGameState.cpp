@@ -16,6 +16,10 @@ void ALobbyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 
 	// Принудительно синхронизируем всегда, даже если у владельца число совпало
 	DOREPLIFETIME_CONDITION_NOTIFY(ALobbyGameState, NodeCount, COND_None, REPNOTIFY_Always);
+	
+	DOREPLIFETIME_CONDITION_NOTIFY(ALobbyGameState, MapSeed, COND_None, REPNOTIFY_Always);
+	
+	DOREPLIFETIME_CONDITION_NOTIFY(ALobbyGameState, MapSize, COND_None, REPNOTIFY_Always);
 }
 
 void ALobbyGameState::SetNodeCount(int32 NewCount)
@@ -43,6 +47,15 @@ int32 ALobbyGameState::GetMapSeed() const
 	return MapSeed;
 }
 
+void ALobbyGameState::SetMapSize(int32 NewSize)
+{
+	if (HasAuthority())
+	{
+		MapSize = NewSize;
+		OnRep_MapSize();
+	}
+}
+
 void ALobbyGameState::OnRep_NodeCount()
 {
 	// Этот код выполнится на компьютерах ВСЕХ игроков, когда число нод изменится
@@ -52,5 +65,23 @@ void ALobbyGameState::OnRep_NodeCount()
 void ALobbyGameState::OnRep_MapSeed()
 {
 	OnMapSeedChangedBP.Broadcast(MapSeed);
+}
+
+void ALobbyGameState::OnRep_MapSize()
+{
+	OnMapSizeChangedBP.Broadcast(MapSize);
+}
+
+void ALobbyGameState::UpdateNodePositions(const TArray<FVector2D>& NewPositions)
+{
+	if (HasAuthority())
+	{
+		NodesPositions = NewPositions;
+	}
+}
+
+TArray<FVector2D> ALobbyGameState::GetNodePositions()
+{
+	return NodesPositions;
 }
 

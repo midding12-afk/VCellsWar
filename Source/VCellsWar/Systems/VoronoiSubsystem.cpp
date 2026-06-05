@@ -426,7 +426,7 @@ bool UVoronoiSubsystem::FindMapBoundaryIntersection(FVector2D StartNode, FVector
 
 void UVoronoiSubsystem::InitializeRenderTarget(int32 Resolution)
 {
-    if (VoronoiRT) return;
+    if (VoronoiRT || Resolution == 0) return;
 
     // Создаем Render Target программно
     VoronoiRT = UKismetRenderingLibrary::CreateRenderTarget2D(

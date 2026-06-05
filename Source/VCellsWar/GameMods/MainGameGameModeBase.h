@@ -16,4 +16,16 @@ class VCELLSWAR_API AMainGameGameModeBase : public AGameModeBase
 	
 protected:
 	void BeginPlay() override;
+	
+	virtual void OnPostLogin(AController* NewPlayer) override;
+
+	virtual void Logout(AController* Exiting) override;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Strategy | Map Settings")
+	TSubclassOf<AActor> StrategyNodeClass;
+	
+public:
+	UFUNCTION(BlueprintCallable, Category = "Strategy | Map Generation")
+	void SpawnNodesFromSubsystem();
+	
 };

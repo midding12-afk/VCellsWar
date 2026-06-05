@@ -25,6 +25,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lobby")
 	void StartMatch(const FString& MapPath);
 	
+	void CallUpdatePlayerListOnAllPlayers();
+	
 protected:
 	
 	virtual void OnPostLogin(AController* NewPlayer) override;

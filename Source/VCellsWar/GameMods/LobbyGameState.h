@@ -32,6 +32,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Map Settings|UI")
 	int32 GetMapSeed() const;
+	
+	UFUNCTION(BlueprintCallable, Category = "Map Settings|UI")
+	void SetMapSize(int32 NewSize);
+
+	UFUNCTION(BlueprintCallable, Category = "Map Settings|UI")
+	int32 GetMapSize() const { return MapSize; }
 
 protected:
 	// Реплицируемая переменная количества нод с RepNotify
@@ -40,12 +46,20 @@ protected:
 	
 	UPROPERTY(ReplicatedUsing = OnRep_MapSeed, BlueprintReadOnly, Category = "Map Settings")
 	int32 MapSeed;
-
+	
+	UPROPERTY(ReplicatedUsing = OnRep_MapSize, BlueprintReadOnly, Category = "Map Settings")
+	int32 MapSize = 0;
+ 
 	UFUNCTION()
 	void OnRep_NodeCount();
 	
 	UFUNCTION()
 	void OnRep_MapSeed();
+	
+	UFUNCTION()
+	void OnRep_MapSize();
+	
+	TArray<FVector2D> NodesPositions;
 
 public:
 	// Делегат, на который подпишется блупринт главного виджета лобби
@@ -58,4 +72,14 @@ public:
 	
 	UPROPERTY(BlueprintAssignable, Category = "Map Settings|UI")
 	FOnMapSeedChanged OnMapSeedChangedBP;
+	
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMapSizeChanged, int32, NewMapSeed);
+	
+	UPROPERTY(BlueprintAssignable, Category = "Map Settings|UI")
+	FOnMapSizeChanged OnMapSizeChangedBP;
+	
+	UFUNCTION(BlueprintCallable, Category = "Voronoi")
+	void UpdateNodePositions(const TArray<FVector2D>& NewPositions);
+	
+	TArray<FVector2D> GetNodePositions();
 };

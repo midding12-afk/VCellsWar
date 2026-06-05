@@ -43,14 +43,16 @@ void ARTSCameraPawn::BeginPlay()
 			// Сбрасываем ротацию контроллера в ноль (Pitch=0, Yaw=0, Roll=0).
 			// Это сотрет наклон камеры, который редактор насильно передал из вьюпорта при нажатии Play.
 			PC->SetControlRotation(FRotator::ZeroRotator);
+			
 
 			// Дополнительно страхуем сам Pawn, возвращая его ротацию в дефолтное положение
 			SetActorRotation(FRotator::ZeroRotator);
+			//SetActorLocation(FVector::ZeroVector);
 			
-			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
-			{
-				Subsystem->AddMappingContext(CameraMappingContext, 0);
-			}
+			// if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+			// {
+			// 	Subsystem->AddMappingContext(CameraMappingContext, 0);
+			// }
 			PC->SetShowMouseCursor(true); // В RTS курсор должен гореть всегда
 		}
 	}
@@ -76,8 +78,8 @@ void ARTSCameraPawn::Move(const FInputActionValue& Value)
 
 		FVector Right = GetActorRightVector();
 
-		AddActorWorldOffset(Forward * MoveVector.Y * MoveSpeed * GetWorld()->GetDeltaSeconds(), true);
-		AddActorWorldOffset(Right * MoveVector.X * MoveSpeed * GetWorld()->GetDeltaSeconds(), true);
+		AddActorWorldOffset(Forward * MoveVector.Y * GetCalkMoveSpeed() * GetWorld()->GetDeltaSeconds(), true);
+		AddActorWorldOffset(Right * MoveVector.X * GetCalkMoveSpeed() * GetWorld()->GetDeltaSeconds(), true);
 	}
 }
 
@@ -88,7 +90,7 @@ void ARTSCameraPawn::Zoom(const FInputActionValue& Value)
 	if (SpringArmComponent)
 	{
 		float NewLen = SpringArmComponent->TargetArmLength + (ZoomValue * -ZoomSpeed);
-		SpringArmComponent->TargetArmLength = FMath::Clamp(NewLen, 400.0f, 3000.0f); // Ограничения зума
+		SpringArmComponent->TargetArmLength = FMath::Clamp(NewLen, 400.0f, 30000.0f); // Ограничения зума
 	}
 }
 
@@ -114,9 +116,14 @@ void ARTSCameraPawn::CheckEdgePan(float DeltaTime)
 		if (!MoveDirection.IsZero())
 		{
 			MoveDirection.Normalize();
-			AddActorWorldOffset(MoveDirection * MoveSpeed * DeltaTime, true);
+			AddActorWorldOffset(MoveDirection * GetCalkMoveSpeed() * DeltaTime, true);
 		}
 	}
+}
+
+float ARTSCameraPawn::GetCalkMoveSpeed()
+{
+	return MoveSpeed * SpringArmComponent->TargetArmLength*0.0001f;
 }
 
 void ARTSCameraPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

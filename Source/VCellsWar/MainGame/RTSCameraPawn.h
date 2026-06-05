@@ -35,9 +35,10 @@ protected:
 	UCameraComponent* CameraComponent;
 
 	// --- ENHANCED INPUT ---
+public:
 	UPROPERTY(EditDefaultsOnly, Category = "RTS Input")
 	UInputMappingContext* CameraMappingContext;
-
+protected:
 	UPROPERTY(EditDefaultsOnly, Category = "RTS Input")
 	UInputAction* MoveAction;
 
@@ -55,4 +56,6 @@ protected:
 	void Move(const FInputActionValue& Value);
 	void Zoom(const FInputActionValue& Value);
 	void CheckEdgePan(float DeltaTime); // Движение камеры мышкой у краев экрана
+	
+	float GetCalkMoveSpeed();
 };

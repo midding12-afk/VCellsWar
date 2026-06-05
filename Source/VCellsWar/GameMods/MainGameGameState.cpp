@@ -10,10 +10,25 @@ void AMainGameGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
 	DOREPLIFETIME_CONDITION_NOTIFY(AMainGameGameState, MapSeed, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(AMainGameGameState, MapSize, COND_None, REPNOTIFY_Always);
 }
 
 void AMainGameGameState::OnRep_MapSeed()
 {
-	OnMapSeedReplicatedBP.Broadcast(MapSeed);
+	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, AllPlayerCount);
 }
 
+void AMainGameGameState::OnRep_MapSize()
+{
+	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, AllPlayerCount);
+}
+
+void AMainGameGameState::OnRep_AllPlayerCount()
+{
+	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, AllPlayerCount);
+}
+
+void AMainGameGameState::OnRep_AllNodesCountOnInit()
+{
+	ReplicatedAllNodesCountOnInit.Broadcast(AllNodesCountOnInit);
+}

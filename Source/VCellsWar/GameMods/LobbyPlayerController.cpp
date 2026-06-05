@@ -67,6 +67,12 @@ void ALobbyPlayerController::Server_RequestReadyCheckBoxChange_Implementation(bo
 		}
 	}
 		
+	ALobbyGameMode* LobbyGM = GetWorld()->GetAuthGameMode<ALobbyGameMode>();
+	if (LobbyGM)
+	{
+		LobbyGM->CallUpdatePlayerListOnAllPlayers();
+	}
+	
 }
 
 void ALobbyPlayerController::Client_RefreshLobbyUI_PlayerList_Implementation()

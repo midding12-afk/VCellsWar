@@ -30,11 +30,19 @@ public:
 	int32 NodesPerPlayer = 3;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Match Setup")
+	int32 AllPlayerCount = 2;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Match Setup")
 	int32 MapSeed = 0;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Match Setup")
+	int32 MapSize = 50000;
 	
 	/*UPROPERTY(BlueprintReadWrite, Category = "Match Statistics")
 	TArray<FPlayerMatchStats> EndGameScores;*/
 	
 	UFUNCTION(BlueprintCallable, Category = "Match Statistics")
 	void ResetStatistics() { /*EndGameScores.Empty();*/ }
+	
+	TArray<FVector2D> NodesPositions;
 };

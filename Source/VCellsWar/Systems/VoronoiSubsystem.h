@@ -10,8 +10,8 @@
 // Структура ребра для поиска уникальных границ полигона
 struct FVoronoiEdge
 {
-    FVector2D P1;
-    FVector2D P2;
+    FVector2D P1 = FVector2D::ZeroVector;
+    FVector2D P2 = FVector2D::ZeroVector;
 
     FVoronoiEdge(FVector2D InP1, FVector2D InP2) : P1(InP1), P2(InP2) {}
 
@@ -25,7 +25,9 @@ struct FVoronoiEdge
 // Структура треугольника Делоне
 struct FVoronoiTriangle
 {
-    FVector2D P1, P2, P3;
+    FVector2D P1 = FVector2D::ZeroVector;
+    FVector2D P2 = FVector2D::ZeroVector;
+    FVector2D P3 = FVector2D::ZeroVector;
 
     FVoronoiTriangle(FVector2D InP1, FVector2D InP2, FVector2D InP3) : P1(InP1), P2(InP2), P3(InP3) {}
 
@@ -120,10 +122,10 @@ struct FVoronoiGraphEdge
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly)
-    FVector2D Start;
+    FVector2D Start = FVector2D::ZeroVector;
 
     UPROPERTY(BlueprintReadOnly)
-    FVector2D End;
+    FVector2D End = FVector2D::ZeroVector;
 };
 
 UCLASS()

@@ -2,6 +2,8 @@
 
 
 #include "LobbyPlayerState.h"
+
+#include "LobbyPlayerController.h"
 #include "MainGamePlayerState.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
@@ -61,6 +63,8 @@ void ALobbyPlayerState::SetIsReady(bool NewIsReady)
 		UKismetSystemLibrary::PrintString(GetWorld(), FString::Printf(TEXT("Set bIsReady to %s"), *GetPlayerName()));
 		
 		OnRep_bIsReady();
+		
+		
 	}
 }
 
