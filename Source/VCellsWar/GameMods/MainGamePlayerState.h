@@ -21,7 +21,7 @@ public:
 	
 protected:
 	UPROPERTY(ReplicatedUsing = OnRep_TeamColor, BlueprintReadOnly, Category = "Strategy | Player")
-	FLinearColor TeamColor;
+	FLinearColor TeamColor = FLinearColor::Gray;
 
 	UFUNCTION()
 	void OnRep_TeamColor();

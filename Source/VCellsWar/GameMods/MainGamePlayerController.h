@@ -19,8 +19,8 @@ public:
 	// Этот метод гарантирует, что павн ПОЛНОСТЬЮ перешел под контроль клиента на новой карте
 	virtual void AcknowledgePossession(APawn* P) override;
 	
-	void TeleportLocalCameraToCenter(FVector CenterLocation);
+	void TeleportLocalCameraTo(FVector2D CenterLocation);
 protected:
-	UFUNCTION(Client, Reliable)
-	void Client_TeleportCamera(FVector TargetLocation);
+	UFUNCTION(Client, Reliable, BlueprintCallable, meta = (CPP_Default_Z = -1.0f))
+	void Client_TeleportCamera(FVector2D TargetLocation, float Z);
 };

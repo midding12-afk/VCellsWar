@@ -89,7 +89,7 @@ void ARTSCameraPawn::Zoom(const FInputActionValue& Value)
 	float ZoomValue = Value.Get<float>();
 	if (SpringArmComponent)
 	{
-		float NewLen = SpringArmComponent->TargetArmLength + (ZoomValue * -ZoomSpeed);
+		float NewLen = SpringArmComponent->TargetArmLength + (ZoomValue * ZoomSpeed);
 		SpringArmComponent->TargetArmLength = FMath::Clamp(NewLen, 400.0f, 30000.0f); // Ограничения зума
 	}
 }

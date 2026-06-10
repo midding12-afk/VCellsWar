@@ -1,0 +1,28 @@
+// Copyright (c) 2026, Dmitry Tur. All rights reserved.
+
+
+#include "PortalBase.h"
+
+// Sets default values
+APortalBase::APortalBase()
+{
+ 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	PrimaryActorTick.bCanEverTick = false;
+
+}
+
+// Called when the game starts or when spawned
+void APortalBase::BeginPlay()
+{
+	Super::BeginPlay();
+	
+}
+
+// Called every frame
+void APortalBase::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+}
+
+

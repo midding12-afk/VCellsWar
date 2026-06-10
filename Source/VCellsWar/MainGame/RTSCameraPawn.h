@@ -50,7 +50,7 @@ protected:
 	float MoveSpeed = 2000.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "RTS Camera Settings")
-	float ZoomSpeed = 50.0f;
+	float ZoomSpeed = 500.0f;
 
 	// Внутренние функции движения
 	void Move(const FInputActionValue& Value);
