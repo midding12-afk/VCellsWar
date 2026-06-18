@@ -11,6 +11,11 @@ void AMainGameGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	
 	DOREPLIFETIME_CONDITION_NOTIFY(AMainGameGameState, MapSeed, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(AMainGameGameState, MapSize, COND_None, REPNOTIFY_Always);
+	
+	DOREPLIFETIME_CONDITION_NOTIFY(AMainGameGameState, AllPlayerCount, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(AMainGameGameState, AllNodesCountOnInit, COND_None, REPNOTIFY_Always);
+	
+	DOREPLIFETIME_CONDITION_NOTIFY(AMainGameGameState, CachedDeloneEdgesTowerID, COND_None, REPNOTIFY_Always);
 }
 
 void AMainGameGameState::OnRep_MapSeed()
@@ -31,4 +36,9 @@ void AMainGameGameState::OnRep_AllPlayerCount()
 void AMainGameGameState::OnRep_AllNodesCountOnInit()
 {
 	ReplicatedAllNodesCountOnInit.Broadcast(AllNodesCountOnInit);
+}
+
+void AMainGameGameState::OnRep_CachedDeloneEdgesTowerID()
+{
+	OnCachedDeloneEdgesTowerIDChangedBP.Broadcast(CachedDeloneEdgesTowerID);
 }

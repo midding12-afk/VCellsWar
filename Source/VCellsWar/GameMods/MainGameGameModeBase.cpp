@@ -10,6 +10,7 @@
 #include "VCellsWar/Actors/StrategyEntityCharacter.h"
 #include "VCellsWar/Systems/MatchStatisticsSubsystem.h"
 #include "VCellsWar/Systems/NodesSubsystem.h"
+#include "VCellsWar/Systems/VoronoiSubsystem.h"
 
 void AMainGameGameModeBase::BeginPlay()
 {
@@ -155,6 +156,7 @@ void AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 		if (PS)
 		{
 			//FLinearColor teamColor = PS->GetTeamColor();
+			LinkedStructuresCounter++;
 				
 			FVector2D vector = FVector2D(0.9*StatsSubsystem->MapSize/2.f, 0.f);
 				
@@ -169,6 +171,8 @@ void AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 			if (DeferredPortal)
 			{
 				DeferredPortal->SetEntityOwner(PS);
+				DeferredPortal->Server_SetNextSpawnDelay(0.f);
+				IStructureNetIDInterface::Execute_Server_SetStructureNetID(DeferredPortal, LinkedStructuresCounter);
 				UGameplayStatics::FinishSpawningActor(DeferredPortal, SpawnTransform);
 			}
 		}
@@ -197,7 +201,23 @@ void AMainGameGameModeBase::SpawnNodesFromSubsystem()
     // 2. Запускаем цикл по всем сохраненным позициям нод
     for (const FVector2D& NodePos2D : StatsSubsystem->NodesPositions)
     {
-    	SpawnActorInLocation(StrategyNodeClass, NodePos2D);
+    	LinkedStructuresCounter++;
+    	
+    	//SpawnActorInLocation(StrategyNodeClass, NodePos2D);
+    	
+    	FVector FinalSpawnLocation = GetPointOnMapInLocation(NodePos2D);
+    	
+    	FTransform SpawnTransform(FRotator::ZeroRotator, FinalSpawnLocation, FVector(1.0f, 1.0f, 1.0f));
+    	
+    	ATowerBase* NewActor = GetWorld()->SpawnActorDeferred<ATowerBase>(StrategyNodeClass, 	SpawnTransform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+					
+    	if (NewActor)
+    	{
+    		IStructureNetIDInterface::Execute_Server_SetStructureNetID(NewActor, LinkedStructuresCounter);
+    		//NewActor->Server_SetStructureNetID(LinkedStructuresCounter);
+			
+    		UGameplayStatics::FinishSpawningActor(NewActor, SpawnTransform);
+    	}
     }
 	
 }
@@ -207,33 +227,61 @@ void AMainGameGameModeBase::SpawnUnitFromPortal(APortalBase* PortalActor)
 	if (!PortalActor || !CharacterUnitClass) return;
 
 	// Спавним человечка прямо в координатах портала
-	FVector SpawnLocation = PortalActor->GetActorLocation() + FVector(0.0f, 0.0f, 100.0f); // Чуть приподнимаем над порталом
+	FVector SpawnLocation = PortalActor->GetActorLocation() + FVector(0.0f, 0.0f, 150.0f); // Чуть приподнимаем над порталом
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	AActor* NewActor = GetWorld()->SpawnActor<AActor>(CharacterUnitClass, SpawnLocation, PortalActor->GetActorRotation(), SpawnParams);
+	//AActor* NewActor = GetWorld()->SpawnActor<AActor>(CharacterUnitClass, SpawnLocation, PortalActor->GetActorRotation(), SpawnParams);
 	
-	AStrategyEntityCharacter* NewUnit = Cast<AStrategyEntityCharacter>(NewActor);
-	if (NewUnit)
+	
+	
+	FVector ForwardVec = PortalActor->GetActorForwardVector();
+	//UPDATE with GAS
+	int32 Count = 10;	
+	for (int Index = 0; Index < Count; Index++)
 	{
-		// 1. Задаем владельца (наш прошлый C++ шаг)
-		NewUnit->SetEntityOwner(PortalActor->GetEntityOwnerState());
-
-		// 2. Толкаем человечка: передаем направление, куда смотрит портал
-		NewUnit->LaunchFromPortal(PortalActor->GetActorForwardVector());
+		float AngleDegrees = 360.f/Count * Index;
+			
+		FRotator RotationAroundZ(0.0f, AngleDegrees, 0.0f);
+			
+		FVector RotatedForwardVec = RotationAroundZ.RotateVector(ForwardVec);
+		
+		FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation+RotatedForwardVec*150.f, FVector(1.0f, 1.0f, 1.0f));
+		
+		AStrategyEntityCharacter* NewActor = GetWorld()->SpawnActorDeferred<AStrategyEntityCharacter>(CharacterUnitClass, 	SpawnTransform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		
+		AMainGamePlayerState* PS = IStrategyEntityInterface::Execute_GetEntityOwnerState(PortalActor);
+		if (!PS) return;
+					
+		if (NewActor)
+		{
+			NewActor->SetEntityOwner(PS);
+			
+			
+			
+			UGameplayStatics::FinishSpawningActor(NewActor, SpawnTransform);
+			
+			NewActor->LaunchFromPortal(RotatedForwardVec);
+		}
 	}
 }
 
 
-void AMainGameGameModeBase::RegisterPortal(AStrategyEntityBase* NewPortal)
+void AMainGameGameModeBase::RegisterPortal(APortalBase* NewPortal)
 {
 	if (NewPortal && !ActivePortals.Contains(NewPortal))
 	{
 		ActivePortals.Add(NewPortal);
+		
+		AMainGameGameState* GS = Cast<AMainGameGameState>(GameState);
+		if (ActiveTower.Num() == GS->AllNodesCountOnInit)
+		{
+			UpdateVoronoiAndLinks();
+		}
 	}
 }
 
-void AMainGameGameModeBase::UnregisterPortal(AStrategyEntityBase* OldPortal)
+void AMainGameGameModeBase::UnregisterPortal(APortalBase* OldPortal)
 {
 	if (OldPortal && ActivePortals.Contains(OldPortal))
 	{
@@ -241,11 +289,103 @@ void AMainGameGameModeBase::UnregisterPortal(AStrategyEntityBase* OldPortal)
 	}
 }
 
+void AMainGameGameModeBase::RegisterTower(ATowerBase* NewTower)
+{
+	if (NewTower && !ActiveTower.Contains(NewTower))
+	{
+		ActiveTower.Add(NewTower);
+	}
+	
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GameState);
+	if (ActiveTower.Num() == GS->AllNodesCountOnInit)
+	{
+		bAllTowersSpawned = true;
+		UpdateVoronoiAndLinks(true);
+	}
+}
+
+void AMainGameGameModeBase::UpdateVoronoiAndLinks(bool NeedToUpdateCellsMap)
+{
+	if (!bAllTowersSpawned) return;
+	
+	TArray<FVector2D> ActiveTowerLocation;
+	for (const ATowerBase* Tower : ActiveTower)
+	{
+		if (IsValid(Tower))
+		{
+			FVector Location = Tower->GetActorLocation();
+			ActiveTowerLocation.Add(FVector2D(Location.X, Location.Y));
+		}
+	}
+		
+	UVoronoiSubsystem* VoronoiSB = GetGameInstance()->GetSubsystem<UVoronoiSubsystem>();
+	if (!VoronoiSB) return;
+				
+	TArray<FDeloneGraphEdge> CachedDeloneEdges = VoronoiSB->GetCachedDeloneEdges();
+	if (NeedToUpdateCellsMap || CachedDeloneEdges.Num() == 0)
+	{
+		VoronoiSB->UpdateNodePositions(ActiveTowerLocation);
+		VoronoiSB->ReconstructAndDraw();
+		CachedDeloneEdges = VoronoiSB->GetCachedDeloneEdges();
+	}
+	
+	TArray<FDeloneGraphEdge> CachedDeloneEdgesTowerID;
+	CachedDeloneEdgesTowerID.Empty();	
+	
+	for (FDeloneGraphEdge& Edge : CachedDeloneEdges)
+	{
+		int32 TowerIdA = ActiveTower[Edge.Start]->GetStructureNetID_Implementation();
+		int32 TowerIdB = ActiveTower[Edge.End]->GetStructureNetID_Implementation();
+		
+		if (TowerIdA && TowerIdB)
+			CachedDeloneEdgesTowerID.Add(FDeloneGraphEdge(TowerIdA, TowerIdB));
+	}
+	
+	//add portals
+	for (APortalBase* Portal : ActivePortals)
+	{
+		if (Portal)
+		{
+			int32 TowerIdA = Portal->GetStructureNetID_Implementation();
+			int32 TowerIdB = -1;
+			float MinDis = BIG_NUMBER;
+			
+			for (ATowerBase* Tower : ActiveTower)
+			{
+				float CurrentDis = FVector::Dist(Portal->GetActorLocation(), Tower->GetActorLocation());
+				if (CurrentDis < MinDis)
+				{
+					MinDis = CurrentDis;
+					TowerIdB = Tower->GetStructureNetID_Implementation();
+				}
+			}
+			
+			if (TowerIdA>0 && TowerIdB>0)
+				CachedDeloneEdgesTowerID.Add(FDeloneGraphEdge(TowerIdA, TowerIdB));
+		}
+	}
+	
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GameState);
+	if (GS)
+	{
+		GS->CachedDeloneEdgesTowerID = CachedDeloneEdgesTowerID;
+		GS->OnRep_CachedDeloneEdgesTowerID();
+	}
+}
+
+void AMainGameGameModeBase::UnregisterTower(ATowerBase* OldTower)
+{
+	if (OldTower && ActiveTower.Contains(OldTower))
+	{
+		ActiveTower.Remove(OldTower);
+	}
+}
+
 void AMainGameGameModeBase::ProcessStrategyLogicTick()
 {
 	// ЦЕНТРАЛЬНЫЙ СЕРВЕРНЫЙ ТИК СТРАТЕГИИ
 	// Здесь мы одной легкой итерацией обрабатываем логику ВСЕХ порталов сразу!
-	for (AStrategyEntityBase* Portal : ActivePortals)
+	for (APortalBase* Portal : ActivePortals)
 	{
 		if (Portal)
 		{
@@ -255,6 +395,15 @@ void AMainGameGameModeBase::ProcessStrategyLogicTick()
 			
 			// Или командуем порталу запустить визуальный эффект:
 			// Portal->Execute_YourCustomInterfaceMethod(Portal);
+			if (GetWorld()->GetTimeSeconds() >= Portal->GetNextSpawnTime())
+			{
+				//UPDATE with GAS
+				Portal->Server_SetNextSpawnDelay(30.f);
+				
+				
+				SpawnUnitFromPortal(Portal);
+				
+			}
 		}
 	}
 }

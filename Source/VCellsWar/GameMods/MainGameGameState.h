@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
+#include "VCellsWar/Systems/VoronoiSubsystem.h" 
 #include "MainGameGameState.generated.h"
 
 /**
@@ -51,4 +52,13 @@ public:
 	UFUNCTION()
 	void OnRep_AllNodesCountOnInit(); 
 	
+	UPROPERTY(ReplicatedUsing = OnRep_CachedDeloneEdgesTowerID, BlueprintReadOnly, Category = "Map")
+	TArray<FDeloneGraphEdge> CachedDeloneEdgesTowerID;
+	
+	UFUNCTION()
+	void OnRep_CachedDeloneEdgesTowerID(); 
+		
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCachedDeloneEdgesTowerIDChanged, TArray<FDeloneGraphEdge>, DeloneEdgesTowerID);
+	UPROPERTY(BlueprintAssignable, Category = "Map Settings|UI")
+	FOnCachedDeloneEdgesTowerIDChanged OnCachedDeloneEdgesTowerIDChangedBP;
 };

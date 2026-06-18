@@ -23,6 +23,12 @@ AStrategyEntityBase::AStrategyEntityBase()
 	OwningPlayerState = nullptr;
 }
 
+void AStrategyEntityBase::BeginPlay()
+{
+	Super::BeginPlay();
+	
+}
+
 void AStrategyEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Tickable.h"
 #include "VoronoiSubsystem.generated.h"
 
 // Структура ребра для поиска уникальных границ полигона
@@ -128,6 +127,26 @@ struct FVoronoiGraphEdge
     FVector2D End = FVector2D::ZeroVector;
 };
 
+USTRUCT(BlueprintType)
+struct FDeloneGraphEdge
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 Start = -1;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 End = -1;
+    
+    FDeloneGraphEdge() {}
+    FDeloneGraphEdge(int32 InA, int32 InB) : Start(InA), End(InB) {}
+    
+    bool operator==(const FDeloneGraphEdge& Other) const
+    {
+        return (Start == Other.Start && End == Other.End);
+    }
+};
+
 UCLASS()
 class VCELLSWAR_API UVoronoiSubsystem : public UGameInstanceSubsystem//, public FTickableGameObject
 {
@@ -164,6 +183,8 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Voronoi")
     void InitializeRenderTarget(int32 Resolution = 1024);
+    
+    TArray<FDeloneGraphEdge> GetCachedDeloneEdges() const { return CachedDeloneEdges; }
 
 private:
     void ReconstructDiagram();
@@ -177,6 +198,9 @@ private:
 
     TArray<FVector2D> ActiveNodes;
     TArray<FVoronoiGraphEdge> CachedVoronoiEdges;
+    TArray<FDeloneGraphEdge> CachedDeloneEdges;
+    
+    int32 GetTowerIDByPoint(const FVector2D& Point);
     
     UPROPERTY()
     UTextureRenderTarget2D* VoronoiRT = nullptr;

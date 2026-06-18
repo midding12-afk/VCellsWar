@@ -49,10 +49,15 @@ void AStrategyEntityPawn::OnRep_OwningPlayerState()
 {
 }
 
+void AStrategyEntityPawn::OnRep_OwningPlayerColor()
+{
+}
+
 void AStrategyEntityPawn::SetEntityOwner_Internal(AMainGamePlayerState* NewOwnerState)
 {
 	if (!NewOwnerState) return;
 	
 	OwningPlayerState = NewOwnerState;
+	OwningPlayerColor = OwningPlayerState->GetTeamColor();
 }
 

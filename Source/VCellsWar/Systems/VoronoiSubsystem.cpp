@@ -273,6 +273,7 @@ TArray<FVoronoiTriangle> UVoronoiSubsystem::RunBowyerWatson(const TArray<FVector
 void UVoronoiSubsystem::ReconstructDiagram()
 {
     CachedVoronoiEdges.Empty();
+    CachedDeloneEdges.Empty();
 
     if (ActiveNodes.Num() < 3) return;
 
@@ -319,6 +320,53 @@ void UVoronoiSubsystem::ReconstructDiagram()
             }
         }
     }
+    
+    for (const FVoronoiTriangle& Tri : Triangles)
+    {
+        int32 TowersID[3] = {
+            GetTowerIDByPoint(Tri.P1),
+            GetTowerIDByPoint(Tri.P2), 
+            GetTowerIDByPoint(Tri.P3)
+        };
+        
+        if (TowersID[0] == INDEX_NONE || TowersID[1] == INDEX_NONE || TowersID[2] == INDEX_NONE)
+        {
+            continue;
+        }
+        
+        auto MakeSortedEdge = [](int32 ID_A, int32 ID_B) -> FDeloneGraphEdge
+        {
+            return (ID_A < ID_B) ? FDeloneGraphEdge(ID_A, ID_B) : FDeloneGraphEdge(ID_B, ID_A);
+        };
+        
+        FDeloneGraphEdge CurrentEdges[3] = {
+            MakeSortedEdge(TowersID[0], TowersID[1]),
+            MakeSortedEdge(TowersID[1], TowersID[2]),
+            MakeSortedEdge(TowersID[2], TowersID[0])
+        };
+        
+        for (const FDeloneGraphEdge& DEdge : CurrentEdges)
+        {
+            if (!CachedDeloneEdges.Contains(DEdge))
+            {
+                CachedDeloneEdges.Add(DEdge);
+            }
+        }
+    }
+    
+}
+
+
+int32 UVoronoiSubsystem::GetTowerIDByPoint(const FVector2D& Point)
+{
+    int32 FoundIndex = INDEX_NONE; 
+    
+    if (ActiveNodes.Find(Point, FoundIndex))
+    {
+        return FoundIndex;
+    }
+    
+    return INDEX_NONE;
 }
 
 

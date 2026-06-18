@@ -34,9 +34,15 @@ protected:
 	// Самый главный указатель. Реплицируется от сервера к клиентам.
 	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerState, BlueprintReadOnly, Category = "Strategy | Ownership")
 	AMainGamePlayerState* OwningPlayerState;
+	
+	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerColor, BlueprintReadOnly, Category = "Strategy | Ownership")
+	FLinearColor OwningPlayerColor = FLinearColor::Gray*0.3f;
 
 	UFUNCTION()
 	void OnRep_OwningPlayerState();
+	
+	UFUNCTION()
+	void OnRep_OwningPlayerColor();
 	
 	// Физическая переменная цвета, которая реплицируется по сети
 	// UPROPERTY(ReplicatedUsing = OnRep_TeamColor, BlueprintReadOnly, Category = "Visual")
@@ -47,7 +53,7 @@ protected:
 public:
 	// Нам НЕ нужны макросы UFUNCTION здесь! Они автоматически унаследовались из интерфейса.
 	// virtual void SetTeamColor_Implementation(FLinearColor NewColor) override {TeamColor = NewColor;};
-	virtual FLinearColor GetTeamColor_Implementation() const override {return OwningPlayerState ? OwningPlayerState->GetTeamColor() : FLinearColor::Gray;};
+	virtual FLinearColor GetTeamColor_Implementation() const override {return OwningPlayerColor;};
 	
 	virtual AMainGamePlayerState* GetEntityOwnerState_Implementation() override {return  OwningPlayerState;};
 	//virtual void SetEntityOwner(AMainGamePlayerState* NewOwnerState) override { OwningPlayerState = NewOwnerState; };

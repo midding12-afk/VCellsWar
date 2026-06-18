@@ -82,6 +82,10 @@ void AStrategyEntityCharacter::OnRep_OwningPlayerState()
 	
 }
 
+void AStrategyEntityCharacter::OnRep_OwningPlayerColor()
+{
+}
+
 void AStrategyEntityCharacter::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
@@ -107,4 +111,5 @@ void AStrategyEntityCharacter::SetEntityOwner_Internal(AMainGamePlayerState* New
 	if (!NewOwnerState) return;
 	
 	OwningPlayerState = NewOwnerState;
+	OwningPlayerColor = OwningPlayerState->GetTeamColor();
 }

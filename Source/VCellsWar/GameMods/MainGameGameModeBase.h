@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "VCellsWar/Actors/PortalBase.h"
+#include "VCellsWar/Actors/TowerBase.h"
 #include "MainGameGameModeBase.generated.h"
 
 /**
@@ -19,8 +20,6 @@ protected:
 	void BeginPlay() override;
 	
 	virtual void OnPostLogin(AController* NewPlayer) override;
-
-	virtual void Logout(AController* Exiting) override;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Strategy | Map Settings")
 	TSubclassOf<AActor> StrategyNodeClass;
@@ -35,18 +34,23 @@ protected:
 	TSubclassOf<AActor> CharacterUnitClass;
 	
 public:
+	virtual void Logout(AController* Exiting) override;
+	
 	UFUNCTION(BlueprintCallable, Category = "Strategy | Map Generation")
 	void SpawnNodesFromSubsystem();
 	void SpawnUnitFromPortal(APortalBase* PortalActor);
 	
 	// API для регистрации: вызываются акторами из их BeginPlay / EndPlay
-	void RegisterPortal(AStrategyEntityBase* NewPortal);
-	void UnregisterPortal(AStrategyEntityBase* OldPortal);
+	void RegisterPortal(APortalBase* NewPortal);
+	void UnregisterPortal(APortalBase* OldPortal);
+	
+	void RegisterTower(ATowerBase* NewTower);
+	void UnregisterTower(ATowerBase* OldTower);
 	
 	FVector GetPointOnMapInLocation(FVector2D Location2D) const;
-	
+protected:	
 	virtual void GenericPlayerInitialization(AController* NewPlayer) override;
-protected:
+
 	// Функция глобального таймера логики (например, доход или спавн)
 	void ProcessStrategyLogicTick();
 	
@@ -58,7 +62,16 @@ private:
 	// макрос UPROPERTY() нужен здесь ТОЛЬКО для того, чтобы сборщик мусора (Garbage Collector) 
 	// случайно не удалил эти объекты из памяти. Репликация здесь НЕ ВКЛЮЧАЕТСЯ.
 	UPROPERTY()
-	TArray<AStrategyEntityBase*> ActivePortals;
+	TArray<APortalBase*> ActivePortals;
+	
+	UPROPERTY()
+	TArray<ATowerBase*> ActiveTower;
 
 	FTimerHandle StrategyLogicTimerHandle;
+	
+	int32 LinkedStructuresCounter = 0;
+	
+	void UpdateVoronoiAndLinks(bool NeedToUpdateCellsMap = false);
+	
+	bool bAllTowersSpawned=false;
 };
