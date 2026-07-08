@@ -34,7 +34,7 @@ AActor* ULocalGraphicsPoolSubsystem::GetActorFromPool(TSubclassOf<AActor> ActorC
 			// Включаем отображение мешей/частиц и возвращаем коллизию
 			RetrievedActor->SetActorHiddenInGame(false);
 			RetrievedActor->SetActorEnableCollision(true);
-			RetrievedActor->SetActorTickEnabled(true);
+			//RetrievedActor->SetActorTickEnabled(true);
 
 			return RetrievedActor;
 		}

@@ -103,6 +103,16 @@ void ALobbyGameMode::StartMatch(const FString& MapPath)
 			
 		}		
 		
+		int32 TeamId = 0;
+		for (APlayerState* PS : GameState->PlayerArray)
+		{
+			ALobbyPlayerState* LobbyPS = Cast<ALobbyPlayerState>(PS);
+			if (LobbyPS)
+			{
+				LobbyPS->SetGenericTeamId(TeamId);
+				TeamId++;
+			}
+		}		
 		
 		//UE_LOG(LogTemp, Log, TEXT("LobbyGM: Все готовы! Запуск бесшовного перехода на игровую карту..."));
 		

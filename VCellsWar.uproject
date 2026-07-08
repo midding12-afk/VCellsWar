@@ -11,7 +11,8 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"CoreUObject",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"AIModule"
 			]
 		}
 	],
@@ -62,6 +63,10 @@
 				"Linux",
 				"Mac"
 			]
+		},
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": true
 		}
 	]
 }

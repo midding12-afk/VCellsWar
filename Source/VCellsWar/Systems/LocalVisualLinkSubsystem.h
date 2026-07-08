@@ -60,8 +60,10 @@ protected:
 	UFUNCTION()
 	void HandleDeloneEdgesChanged(TArray<FDeloneGraphEdge> DeloneEdgesTowerID);
 	
+	UPROPERTY()
 	TMap<int32, AActor*> TowerIDMap;
 	
+	UPROPERTY()
 	TArray<FLinkDataState> BeamList;
 	
 };

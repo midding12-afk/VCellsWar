@@ -6,6 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "VCellsWar/Actors/PortalBase.h"
 #include "VCellsWar/Actors/TowerBase.h"
+#include "VCellsWar/Systems/ServerNetworkPoolSubsystem.h"
 #include "MainGameGameModeBase.generated.h"
 
 /**
@@ -38,7 +39,7 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Strategy | Map Generation")
 	void SpawnNodesFromSubsystem();
-	void SpawnUnitFromPortal(APortalBase* PortalActor);
+	//void SpawnUnitFromPortal(APortalBase* PortalActor);
 	
 	// API для регистрации: вызываются акторами из их BeginPlay / EndPlay
 	void RegisterPortal(APortalBase* NewPortal);
@@ -48,15 +49,23 @@ public:
 	void UnregisterTower(ATowerBase* OldTower);
 	
 	FVector GetPointOnMapInLocation(FVector2D Location2D) const;
+	
+	UFUNCTION(BlueprintCallable, Category = "Strategy | Map Generation")
+	void ForceRuntimeNavMeshRebuild();
+	
+	UFUNCTION(BlueprintCallable, Category = "RTS | Navigation")
+	void ResizeNavMeshBoundsVolume(ANavMeshBoundsVolume* VolumeToResize, FVector NewHalfExtents);
 protected:	
 	virtual void GenericPlayerInitialization(AController* NewPlayer) override;
 
 	// Функция глобального таймера логики (например, доход или спавн)
 	void ProcessStrategyLogicTick();
+	void EndPlay(EEndPlayReason::Type EndPlayReason);
 	
+
 	void SpawnNewPortal(AController* NewPlayer);
 	
-	int32 SplayerSpawnedPortalsCounter = 0;
+	int32 PlayerSpawnedPortalsCounter = 0;
 private:
 	// Чистые C++ массивы указателей. Поскольку GameMode живет только на сервере,
 	// макрос UPROPERTY() нужен здесь ТОЛЬКО для того, чтобы сборщик мусора (Garbage Collector) 
@@ -74,4 +83,8 @@ private:
 	void UpdateVoronoiAndLinks(bool NeedToUpdateCellsMap = false);
 	
 	bool bAllTowersSpawned=false;
+	
+	UServerNetworkPoolSubsystem* ServerPool;
+	
+	// int32 TeamIndexCounter = 0;
 };

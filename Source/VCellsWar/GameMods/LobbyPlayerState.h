@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericTeamAgentInterface.h"
 #include "GameFramework/PlayerState.h"
 #include "LobbyPlayerState.generated.h"
 
@@ -10,7 +11,7 @@
  * 
  */
 UCLASS()
-class VCELLSWAR_API ALobbyPlayerState : public APlayerState
+class VCELLSWAR_API ALobbyPlayerState : public APlayerState, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 public:
@@ -49,4 +50,18 @@ public:
 	
 	UPROPERTY(BlueprintAssignable, Category = "Lobby|UI")
 	FOnIsReadyChanged OnIsReadyChangedBP;
+	
+	// UFUNCTION(BlueprintCallable)
+	// int32 GetTeamIndex() const { return TeamIndex; };
+	// UFUNCTION(BlueprintCallable)
+	// void SetTeamIndex(int32 NewTeamIndex){TeamIndex = NewTeamIndex;};
+	
+	virtual void SetGenericTeamId(const FGenericTeamId& TeamID) override {TeamIndex = TeamID;}
+	
+	/** Retrieve team identifier in form of FGenericTeamId */
+	virtual FGenericTeamId GetGenericTeamId() const override { return TeamIndex; }
+	
+protected:
+	UPROPERTY()
+	FGenericTeamId TeamIndex;
 };

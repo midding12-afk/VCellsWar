@@ -8,15 +8,16 @@
 #include "StrategyEntityPawn.generated.h"
 
 UCLASS()
-class VCELLSWAR_API AStrategyEntityPawn : public APawn, public IStrategyEntityInterface
+class VCELLSWAR_API AStrategyEntityPawn : public APawn, public IStrategyEntityInterface, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this pawn's properties
 	AStrategyEntityPawn();
+	
+	virtual FGenericTeamId GetGenericTeamId() const override;
 
-protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
@@ -58,6 +59,8 @@ public:
 	virtual AMainGamePlayerState* GetEntityOwnerState_Implementation() override {return  OwningPlayerState;};
 	//virtual void SetEntityOwner(AMainGamePlayerState* NewOwnerState) override { OwningPlayerState = NewOwnerState; };
 	//virtual bool IsOwnedByLocalPlayer_Implementation() const override;
-protected:
+
 	virtual void SetEntityOwner_Internal(AMainGamePlayerState* NewOwnerState) override;
+	
+	virtual int32 GetEntityFactionID_Implementation() const override {return GetGenericTeamId();};
 };

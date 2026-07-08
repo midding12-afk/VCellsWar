@@ -97,7 +97,7 @@ void ALobbyPlayerState::CopyProperties(APlayerState* NewPlayerState)
 			// 3. Копируем цвет из ТЕКУЩЕГО стейта лобби (this->TeamColor) 
 			// в соответствующий метод или переменную игрового стейта матча
 			MainGamePS->SetTeamColor(this->TeamColor); 
-			
+			MainGamePS->SetGenericTeamId(this->TeamIndex);
 		}
 	}
 }

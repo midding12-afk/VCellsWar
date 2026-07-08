@@ -21,14 +21,6 @@ class VCELLSWAR_API IStrategyEntityInterface
 
 public:
 	
-	// virtual FLinearColor GetTeamColor() const = 0;
-	// virtual void SetTeamColor(FLinearColor NewColor) = 0;
-	
-	// UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Strategy | Interface")
-	// void SetTeamColor(FLinearColor NewColor);
-	// virtual void SetTeamColor_Implementation(FLinearColor NewColor) {}
-
-
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Strategy | Interface")
 	FLinearColor GetTeamColor() const;
 	virtual FLinearColor GetTeamColor_Implementation() const { return FLinearColor::White; }
@@ -115,7 +107,7 @@ protected:
 
 	// должна быть виртуальной, чтобы её переопределяли C++ наследники!
 	virtual void OnOwnerChanged_Implementation(AMainGamePlayerState* NewOwner) {}
-	
+public:
 	virtual AMainGamePlayerState* GetEntityOwnerState_Implementation() = 0;//Не const из-за бага вызова из PB
 	
 	
@@ -123,5 +115,27 @@ protected:
 	// Каждый класс (Актор здания или Pawn юнита) реализует её за 1 секунду, просто записывая переменную.
 	virtual void SetEntityOwner_Internal(AMainGamePlayerState* NewOwnerState) = 0;
 
+	/**
+	 * Возвращает ID фракции (0-7), полученный из лобби матча.
+	 *  мост для Блупринт-таски State Tree!
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Strategy | Interface")
+	int32 GetEntityFactionID() const;
+
+	// Пишем базовую дефолтную реализацию прямо здесь (для безопасности)
+	virtual int32 GetEntityFactionID_Implementation() const { return 255; }
+	
+	virtual void GeinDamage(float Damage) {};
+	
+	// С++ метод интерфейса для мгновенного запекания данных внутри лямбды спавна
+	//virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState) {}
+	virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform) {}
+
+	// Методы для вызова из вашего HUD/Контроллера при обводе рамкой
+	
+	virtual void SelectEntity() {};
+
+	virtual void DeselectEntity() {};
+	
 
 };

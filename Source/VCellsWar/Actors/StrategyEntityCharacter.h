@@ -8,28 +8,29 @@
 #include "StrategyEntityCharacter.generated.h"
 
 UCLASS()
-class VCELLSWAR_API AStrategyEntityCharacter : public ACharacter, public IStrategyEntityInterface
+class VCELLSWAR_API AStrategyEntityCharacter : public ACharacter, public IStrategyEntityInterface, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this character's properties
 	AStrategyEntityCharacter();
+	
+	virtual FGenericTeamId GetGenericTeamId() const override;
+	void PossessedBy(AController* NewController) override;
 
-protected:
+
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	
+	void InitCharacter();
 
-public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	// Called to bind functionality to input
-	//virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-
+	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override;
 protected:
 	// Самый главный указатель. Реплицируется от сервера к клиентам.
 	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerState, BlueprintReadOnly, Category = "Strategy | Ownership")
@@ -44,26 +45,44 @@ protected:
 	UFUNCTION()
 	void OnRep_OwningPlayerColor();
 	
+	UFUNCTION()
+	void OnRep_SpawnGeneration();
+	
+	UPROPERTY()//(BlueprintReadOnly, Category = "RTS | Team")
+	int32 CachedFactionID = 255;
+	
+public:
 	virtual void Landed(const FHitResult& Hit) override;
 	
-	// Физическая переменная цвета, которая реплицируется по сети
-	// UPROPERTY(ReplicatedUsing = OnRep_TeamColor, BlueprintReadOnly, Category = "Visual")
-	// FLinearColor TeamColor;
-	//
-	// UFUNCTION()
-	// void OnRep_TeamColor();
-public:
 	// Нам НЕ нужны макросы UFUNCTION здесь! Они автоматически унаследовались из интерфейса.
-	// virtual void SetTeamColor_Implementation(FLinearColor NewColor) override {TeamColor = NewColor;};
 	virtual FLinearColor GetTeamColor_Implementation() const override {return OwningPlayerColor;};
 	
 	virtual AMainGamePlayerState* GetEntityOwnerState_Implementation() override {return  OwningPlayerState;};
-	//virtual void SetEntityOwner(AMainGamePlayerState* NewOwnerState) override { OwningPlayerState = NewOwnerState; };
-	//virtual bool IsOwnedByLocalPlayer_Implementation() const override;
-protected:
 	virtual void SetEntityOwner_Internal(AMainGamePlayerState* NewOwnerState) override;
 	
-public:
-	
+
+	UPROPERTY(ReplicatedUsing=OnRep_SpawnGeneration)
+	int32 SpawnGeneration = 0;
 	void LaunchFromPortal(FVector PortalForwardDirection);
+	
+	virtual int32 GetEntityFactionID_Implementation() const override {return GetGenericTeamId();};
+	
+	FORCEINLINE int32 GetRTSFactionIDDirect() const { return CachedFactionID; }
+	
+	virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform) override;
+	
+	UFUNCTION(BlueprintCallable, Category = "RTS | Selection")
+	virtual void SelectEntity() override;
+
+	UFUNCTION(BlueprintCallable, Category = "RTS | Selection")
+	virtual void DeselectEntity() override;
+	
+protected:
+	// С++ компонент декали, который проецирует зеленый круг на землю под солдатом
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RTS | Selection")
+	class UDecalComponent* SelectionDecalComponent;
+
+	// Ссылка на материал кольца (будет настраиваться в Блупринте)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RTS | Selection")
+	class UMaterialInterface* SelectionDecalMaterial;
 };

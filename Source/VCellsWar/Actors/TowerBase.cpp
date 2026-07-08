@@ -5,6 +5,7 @@
 
 #include "Net/UnrealNetwork.h"
 #include "VCellsWar/GameMods/MainGameGameModeBase.h"
+#include "VCellsWar/GameMods/MainGameGameState.h"
 
 ATowerBase::ATowerBase()
 {
@@ -23,6 +24,14 @@ void ATowerBase::BeginPlay()
 		{
 			GM->RegisterTower(this);
 		}
+	}
+	else
+	{
+		AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+		if (GS)
+		{
+			GS->InvocLinksUpdate();
+		}		
 	}
 }
 

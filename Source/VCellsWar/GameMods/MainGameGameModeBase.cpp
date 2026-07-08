@@ -11,6 +11,10 @@
 #include "VCellsWar/Systems/MatchStatisticsSubsystem.h"
 #include "VCellsWar/Systems/NodesSubsystem.h"
 #include "VCellsWar/Systems/VoronoiSubsystem.h"
+#include "GenericTeamAgentInterface.h"
+#include "NavigationSystem.h"
+#include "Components/BrushComponent.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
 
 void AMainGameGameModeBase::BeginPlay()
 {
@@ -43,11 +47,29 @@ void AMainGameGameModeBase::BeginPlay()
 	// Запускаем бесконечный серверный игровой цикл 
 	GetWorldTimerManager().SetTimer(StrategyLogicTimerHandle, this, &AMainGameGameModeBase::ProcessStrategyLogicTick, 1.0f, true);
 	
-	// APlayerController* HostPC = GetWorld()->GetFirstPlayerController();
-	// if (HostPC)
-	// {
-	// 	SpawnNewPortal(HostPC);
-	// }
+	ServerPool = GetWorld()->GetSubsystem<UServerNetworkPoolSubsystem>();
+	
+	// НАСТРОЙКА ПРАВИЛ FFA ДЛЯ ВСЕГО МАТЧА В UE5
+	// Передаем лямбда-функцию в статический метод движка. 
+	// Движок будет вызывать этот кусок кода автоматически каждый раз, когда зрение ИИ сравнивает команды двух любых объектов!
+	FGenericTeamId::SetAttitudeSolver([](FGenericTeamId TeamA, FGenericTeamId TeamB) -> ETeamAttitude::Type
+	{
+		// 1. Если ID команд полностью совпадают — это СВОЙ (Friendly)
+		if (TeamA == TeamB)
+		{
+			return ETeamAttitude::Friendly;
+		}
+
+		// 2. Если один из объектов вообще не имеет команды (NoTeam / 255) — это НЕЙТРАЛ
+		if (TeamA == FGenericTeamId::NoTeam || TeamB == FGenericTeamId::NoTeam)
+		{
+			return ETeamAttitude::Neutral;
+		}
+
+		// 3. В режиме FFA: если ID команд разные (например, Игрок 0 и Игрок 4) — это 100% ВРАГ!
+		// Используем константу ETeamAttitude::Hostile, которую вы нашли на скриншоте кода движка
+		return ETeamAttitude::Hostile;
+	});
 }
 
 
@@ -57,7 +79,18 @@ void AMainGameGameModeBase::GenericPlayerInitialization(AController* NewPlayer)
 	
 	if (NewPlayer)
 	{
-		SpawnNewPortal(NewPlayer);
+		AMainGameGameState* GS = Cast<AMainGameGameState>(GameState);
+		AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(NewPlayer);
+		if (PC && GS)
+		{
+			AMainGamePlayerState* PS = PC->GetPlayerState<AMainGamePlayerState>();
+			if (PS)
+			{
+				GS->AddTeamIDColor(PS->GetGenericTeamId(),PS->GetTeamColor());
+				PS->Override_GiveFactionDefaultAbilities();
+			}
+		}
+		SpawnNewPortal(NewPlayer);		
 	}
 }
 
@@ -72,7 +105,6 @@ void AMainGameGameModeBase::OnPostLogin(AController* NewPlayer)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, (TEXT("GM: Игрок '%s' успешно вошел в лобби!"), *PS->GetPlayerName()));
 		
-		//SpawnNewPortal(NewPlayer);
 	}
 }
 
@@ -160,7 +192,7 @@ void AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 				
 			FVector2D vector = FVector2D(0.9*StatsSubsystem->MapSize/2.f, 0.f);
 				
-			vector = vector.GetRotated(SplayerSpawnedPortalsCounter * anglePerPlayer) + CenterLocation2D;
+			vector = vector.GetRotated(PlayerSpawnedPortalsCounter * anglePerPlayer) + CenterLocation2D;
 				
 				
 			FVector FinalSpawnLocation = GetPointOnMapInLocation(vector);
@@ -172,13 +204,14 @@ void AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 			{
 				DeferredPortal->SetEntityOwner(PS);
 				DeferredPortal->Server_SetNextSpawnDelay(0.f);
+				DeferredPortal->SetGenericTeamId(PS->GetGenericTeamId());
 				IStructureNetIDInterface::Execute_Server_SetStructureNetID(DeferredPortal, LinkedStructuresCounter);
 				UGameplayStatics::FinishSpawningActor(DeferredPortal, SpawnTransform);
 			}
 		}
 	}
 	
-	SplayerSpawnedPortalsCounter++;
+	PlayerSpawnedPortalsCounter++;
 }
 
 void AMainGameGameModeBase::SpawnNodesFromSubsystem()
@@ -220,50 +253,6 @@ void AMainGameGameModeBase::SpawnNodesFromSubsystem()
     	}
     }
 	
-}
-
-void AMainGameGameModeBase::SpawnUnitFromPortal(APortalBase* PortalActor)
-{
-	if (!PortalActor || !CharacterUnitClass) return;
-
-	// Спавним человечка прямо в координатах портала
-	FVector SpawnLocation = PortalActor->GetActorLocation() + FVector(0.0f, 0.0f, 150.0f); // Чуть приподнимаем над порталом
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	//AActor* NewActor = GetWorld()->SpawnActor<AActor>(CharacterUnitClass, SpawnLocation, PortalActor->GetActorRotation(), SpawnParams);
-	
-	
-	
-	FVector ForwardVec = PortalActor->GetActorForwardVector();
-	//UPDATE with GAS
-	int32 Count = 10;	
-	for (int Index = 0; Index < Count; Index++)
-	{
-		float AngleDegrees = 360.f/Count * Index;
-			
-		FRotator RotationAroundZ(0.0f, AngleDegrees, 0.0f);
-			
-		FVector RotatedForwardVec = RotationAroundZ.RotateVector(ForwardVec);
-		
-		FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation+RotatedForwardVec*150.f, FVector(1.0f, 1.0f, 1.0f));
-		
-		AStrategyEntityCharacter* NewActor = GetWorld()->SpawnActorDeferred<AStrategyEntityCharacter>(CharacterUnitClass, 	SpawnTransform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-		
-		AMainGamePlayerState* PS = IStrategyEntityInterface::Execute_GetEntityOwnerState(PortalActor);
-		if (!PS) return;
-					
-		if (NewActor)
-		{
-			NewActor->SetEntityOwner(PS);
-			
-			
-			
-			UGameplayStatics::FinishSpawningActor(NewActor, SpawnTransform);
-			
-			NewActor->LaunchFromPortal(RotatedForwardVec);
-		}
-	}
 }
 
 
@@ -368,8 +357,7 @@ void AMainGameGameModeBase::UpdateVoronoiAndLinks(bool NeedToUpdateCellsMap)
 	AMainGameGameState* GS = Cast<AMainGameGameState>(GameState);
 	if (GS)
 	{
-		GS->CachedDeloneEdgesTowerID = CachedDeloneEdgesTowerID;
-		GS->OnRep_CachedDeloneEdgesTowerID();
+		GS->UpdateCachedDeloneEdgesTowerID(CachedDeloneEdgesTowerID);
 	}
 }
 
@@ -401,9 +389,62 @@ void AMainGameGameModeBase::ProcessStrategyLogicTick()
 				Portal->Server_SetNextSpawnDelay(30.f);
 				
 				
-				SpawnUnitFromPortal(Portal);
+				//SpawnUnitFromPortal(Portal);
 				
 			}
+		}
+	}
+}
+
+void AMainGameGameModeBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Сбрасываем глобальный указатель на лямбду, возвращая дефолтные настройки движка
+	FGenericTeamId::ResetAttitudeSolver();
+	
+	Super::EndPlay(EndPlayReason);
+}
+
+void AMainGameGameModeBase::ForceRuntimeNavMeshRebuild()
+{
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (NavSys)
+	{
+		// Жесткий приказ навигатору: отсканировать все зарегистрированные коробки Volumes 
+		// и немедленно начать фоновое запекание Dynamic NavMesh!
+		NavSys->Build();
+	}
+}
+
+void AMainGameGameModeBase::ResizeNavMeshBoundsVolume(ANavMeshBoundsVolume* VolumeToResize, FVector NewHalfExtents)
+{
+	// 1. Проверяем валидность переданного волюма
+	if (!IsValid(VolumeToResize) || !VolumeToResize->GetBrushComponent()) return;
+
+	// 2. ЖЕСТКО И ПРАВИЛЬНО ИЗМЕНЯЕМ ГЕОМЕТРИЮ БРАША (Аналог Brush Settings из редактора)
+	// В отличие от Scale, этот метод не ломает внутренние навигационные тайлы движка!
+	UBrushComponent* BrushComp = VolumeToResize->GetBrushComponent();
+	if (BrushComp)
+	{
+		// Переписываем внутренние размеры невидимой коробки
+		BrushComp->BrushBodySetup = nullptr; // Сбрасываем старый кэш физики Chaos
+		
+		// Задаем кубу волюма новые чистые геометрические размеры
+		VolumeToResize->Brush->Bounds = FBox(-NewHalfExtents, NewHalfExtents);
+		
+		// Обновляем параметры трансформа и отрисовки компонента на сервере
+		//BrushComp->BuildSimpleBrushGeometry();
+		BrushComp->UpdateBounds();
+		
+		// 4. ОФИЦИАЛЬНЫЙ ТРИГГЕР ДЛЯ UE5:
+		// Находим навигационную систему мира и скармливаем ей обновленный волюм.
+		// Движок сам поднимет нужные флаги, перенарежет тайлы в памяти и сотрет надпись с экрана!
+		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+		if (NavSys)
+		{
+			NavSys->OnNavigationBoundsUpdated(VolumeToResize);
+			
+			// Принудительно пинаем сборку, чтобы навигатор не спал
+			//NavSys->Build();
 		}
 	}
 }

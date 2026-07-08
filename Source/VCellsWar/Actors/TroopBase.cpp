@@ -3,3 +3,16 @@
 
 #include "TroopBase.h"
 
+#include "VCellsWar/Systems/ServerNetworkPoolSubsystem.h"
+
+void ATroopBase::GeinDamage(float Damage)
+{
+	if (!HasAuthority()) return;
+	Super::GeinDamage(Damage);
+	
+	UServerNetworkPoolSubsystem* ServerPool = GetWorld()->GetSubsystem<UServerNetworkPoolSubsystem>();
+	if (ServerPool)
+	{
+		ServerPool->ReturnActorToNetworkPool(this);
+	}
+}

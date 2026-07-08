@@ -141,13 +141,21 @@ void ULocalVisualLinkSubsystem::HandleDeloneEdgesChanged(TArray<FDeloneGraphEdge
 				BeamList[BeamList.Emplace(Edge.Start, Edge.End, Beam)].isActive = true;
 			}				
 		}
-		
-		if (Beam && TowerIDMap[Edge.Start] && TowerIDMap[Edge.End])
+		AActor* const* StartTowerPtr = TowerIDMap.Find(Edge.Start);
+		AActor* const* EndTowerPtr = TowerIDMap.Find(Edge.End);
+
+		// 3. Проверяем, что обе башни ребра УЖЕ заспавнились на клиенте и валидны
+		if (Beam && StartTowerPtr && EndTowerPtr && IsValid(*StartTowerPtr) && IsValid(*EndTowerPtr))
+			//if (Beam && TowerIDMap[Edge.Start] && TowerIDMap[Edge.End])
 		{				
-			Beam->Start = TowerIDMap[Edge.Start]->GetActorLocation();
-			Beam->End = TowerIDMap[Edge.End]->GetActorLocation();
-			Beam->StartColor = IStrategyEntityInterface::Execute_GetTeamColor(TowerIDMap[Edge.Start]);
-			Beam->EndColor = IStrategyEntityInterface::Execute_GetTeamColor(TowerIDMap[Edge.End]);
+			// Достаем чистые указатели на акторов башен/порталов
+			AActor* StartTower = *StartTowerPtr;
+			AActor* EndTower = *EndTowerPtr;			
+					
+			Beam->Start = StartTower->GetActorLocation();
+			Beam->End = EndTower->GetActorLocation();
+			Beam->StartColor = IStrategyEntityInterface::Execute_GetTeamColor(StartTower);
+			Beam->EndColor = IStrategyEntityInterface::Execute_GetTeamColor(EndTower);
 			Beam->UpdateBeam();
 		}
 	}

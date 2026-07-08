@@ -11,7 +11,7 @@
 
 
 UCLASS()
-class VCELLSWAR_API AStrategyEntityBase : public AActor, public IStrategyEntityInterface
+class VCELLSWAR_API AStrategyEntityBase : public AActor, public IStrategyEntityInterface, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 	
@@ -44,6 +44,7 @@ protected:
 	// UFUNCTION()
 	// void OnRep_TeamColor();
 	
+	FGenericTeamId StructureTeamId;
 public:
 	// Нам НЕ нужны макросы UFUNCTION здесь! Они автоматически унаследовались из интерфейса.
 	//virtual void SetTeamColor_Implementation(FLinearColor NewColor) override {TeamColor = NewColor;};
@@ -52,6 +53,13 @@ public:
 	virtual AMainGamePlayerState* GetEntityOwnerState_Implementation() override {return  OwningPlayerState;};
 	//virtual void SetEntityOwner(AMainGamePlayerState* NewOwnerState) override { OwningPlayerState = NewOwnerState; };
 	//virtual bool IsOwnedByLocalPlayer_Implementation() const override;
-protected:
+	
+	virtual void SetGenericTeamId(const FGenericTeamId& TeamID) override {StructureTeamId =  TeamID;};
+	
+	virtual FGenericTeamId GetGenericTeamId() const override { return StructureTeamId; }
+	
+
 	virtual void SetEntityOwner_Internal(AMainGamePlayerState* NewOwnerState) override;
+	
+	virtual int32 GetEntityFactionID_Implementation() const override {return GetGenericTeamId();};
 };

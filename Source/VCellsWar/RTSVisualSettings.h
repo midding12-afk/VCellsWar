@@ -19,4 +19,7 @@ public:
 	// Ссылка на Блупринт вашего лазера. Будет видна в настройках проекта!
 	UPROPERTY(Config, EditAnywhere, Category = "Beams")
 	TSoftClassPtr<AActor> VisualLinkClass;
+	
+	UPROPERTY(Config, EditAnywhere, Category = "Beams")
+	TSoftClassPtr<AActor> VisualBlasterClass;
 };

@@ -3,6 +3,7 @@
 
 #include "StrategyEntityPawn.h"
 
+#include "GenericTeamAgentInterface.h"
 #include "Net/UnrealNetwork.h"
 
 // Sets default values
@@ -59,5 +60,16 @@ void AStrategyEntityPawn::SetEntityOwner_Internal(AMainGamePlayerState* NewOwner
 	
 	OwningPlayerState = NewOwnerState;
 	OwningPlayerColor = OwningPlayerState->GetTeamColor();
+}
+
+FGenericTeamId AStrategyEntityPawn::GetGenericTeamId() const
+{
+	// Если у солдата есть контроллер ИИ — забираем ID команды у него
+	if (IGenericTeamAgentInterface* TeamController = Cast<IGenericTeamAgentInterface>(GetController()))
+	{
+		return TeamController->GetGenericTeamId();
+	}
+
+	return FGenericTeamId::NoTeam;
 }
 
