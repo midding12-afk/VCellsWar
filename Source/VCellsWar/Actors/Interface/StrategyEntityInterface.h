@@ -18,7 +18,7 @@ class UStrategyEntityInterface : public UInterface
 class VCELLSWAR_API IStrategyEntityInterface
 {
 	GENERATED_BODY()
-
+	
 public:
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Strategy | Interface")
@@ -130,6 +130,7 @@ public:
 	// С++ метод интерфейса для мгновенного запекания данных внутри лямбды спавна
 	//virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState) {}
 	virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform) {}
+	virtual void NativeRTSDeinitialize() {};
 
 	// Методы для вызова из вашего HUD/Контроллера при обводе рамкой
 	
@@ -137,5 +138,6 @@ public:
 
 	virtual void DeselectEntity() {};
 	
-
+	virtual void SetSelectedSectorGridIndex(int NewSelectedSectorGridIndex) = 0;
+	virtual int GetSelectedSectorGridIndex() = 0;
 };

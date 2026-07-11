@@ -45,6 +45,8 @@ protected:
 	// void OnRep_TeamColor();
 	
 	FGenericTeamId StructureTeamId;
+	
+	int SelectedSectorGridIndex = -1;
 public:
 	// Нам НЕ нужны макросы UFUNCTION здесь! Они автоматически унаследовались из интерфейса.
 	//virtual void SetTeamColor_Implementation(FLinearColor NewColor) override {TeamColor = NewColor;};
@@ -62,4 +64,7 @@ public:
 	virtual void SetEntityOwner_Internal(AMainGamePlayerState* NewOwnerState) override;
 	
 	virtual int32 GetEntityFactionID_Implementation() const override {return GetGenericTeamId();};
+	
+	virtual void SetSelectedSectorGridIndex(int NewSelectedSectorGridIndex) override {SelectedSectorGridIndex = NewSelectedSectorGridIndex;};
+	virtual int GetSelectedSectorGridIndex() override {return SelectedSectorGridIndex;};
 };

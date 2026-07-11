@@ -70,12 +70,16 @@ public:
 	FORCEINLINE int32 GetRTSFactionIDDirect() const { return CachedFactionID; }
 	
 	virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform) override;
-	
+	virtual void NativeRTSDeinitialize() override;
+
 	UFUNCTION(BlueprintCallable, Category = "RTS | Selection")
 	virtual void SelectEntity() override;
 
 	UFUNCTION(BlueprintCallable, Category = "RTS | Selection")
 	virtual void DeselectEntity() override;
+	
+	virtual void SetSelectedSectorGridIndex(int NewSelectedSectorGridIndex) override {SelectedSectorGridIndex = NewSelectedSectorGridIndex;};
+	virtual int GetSelectedSectorGridIndex() override {return SelectedSectorGridIndex;};
 	
 protected:
 	// С++ компонент декали, который проецирует зеленый круг на землю под солдатом
@@ -85,4 +89,6 @@ protected:
 	// Ссылка на материал кольца (будет настраиваться в Блупринте)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RTS | Selection")
 	class UMaterialInterface* SelectionDecalMaterial;
+	
+	int SelectedSectorGridIndex = -1;
 };

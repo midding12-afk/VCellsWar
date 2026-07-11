@@ -8,6 +8,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Components/DecalComponent.h"
+#include "VCellsWar/Components/StrategyGridComponent.h"
 
 // Sets default values
 AStrategyEntityCharacter::AStrategyEntityCharacter()
@@ -44,6 +45,15 @@ AStrategyEntityCharacter::AStrategyEntityCharacter()
 	// По умолчанию кольцо полностью выключено и скрыто в игре
 	SelectionDecalComponent->SetVisibility(false);
 	SelectionDecalComponent->SetHiddenInGame(true);
+	
+	UStrategyGridComponent* GridTrackingComponent = CreateDefaultSubobject<UStrategyGridComponent>(TEXT("GridTrackingComponent"));
+	
+	// Страховка: принудительно выключаем его нативный тяжелый Tick, 
+	// так как наш компонент работает на сверхскоростных изолированных таймерах! [1.5]
+	if (GridTrackingComponent)
+	{
+		GridTrackingComponent->PrimaryComponentTick.bCanEverTick = false;
+	}
 		
 }
 
@@ -130,7 +140,7 @@ void AStrategyEntityCharacter::NativeRTSInitialize(int32 InFactionID, AMainGameP
 		SpawnGeneration++;
 	}
 
-	// 2. 🔥 ВЫЗЫВАЕМ НАШ ИСПРАВЛЕННЫЙ МЕТОД:
+	// 2. ВЫЗЫВАЕМ НАШ ИСПРАВЛЕННЫЙ МЕТОД:
 	// Капсула мгновенно получает статус QueryAndPhysics и Custom-ответы каналов.
 	// Движок Chaos снова полноценно видит это тело в мире сервера! 
 	InitCharacter();
@@ -167,6 +177,23 @@ void AStrategyEntityCharacter::NativeRTSInitialize(int32 InFactionID, AMainGameP
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
 		Capsule->UpdateOverlaps(); // Финальный пинок триггеров в новой точке пространства
+	}
+	
+	// В самом конце метода NativeRTSInitialize:
+	if (UStrategyGridComponent* GridComp = FindComponentByClass<UStrategyGridComponent>())
+	{
+		// Просыпаемся! Юнит снова на радарах сетки, таймеры взведены
+		GridComp->ActivateGridTracking(true); 
+	}
+}
+
+void AStrategyEntityCharacter::NativeRTSDeinitialize()
+{
+	// В самом конце метода NativeRTSInitialize:
+	if (UStrategyGridComponent* GridComp = FindComponentByClass<UStrategyGridComponent>())
+	{
+		// Просыпаемся! Юнит снова на радарах сетки, таймеры взведены
+		GridComp->DeactivateGridTracking();
 	}
 }
 

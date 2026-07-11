@@ -10,6 +10,8 @@ void ATroopBase::GeinDamage(float Damage)
 	if (!HasAuthority()) return;
 	Super::GeinDamage(Damage);
 	
+	NativeRTSDeinitialize();
+	
 	UServerNetworkPoolSubsystem* ServerPool = GetWorld()->GetSubsystem<UServerNetworkPoolSubsystem>();
 	if (ServerPool)
 	{
