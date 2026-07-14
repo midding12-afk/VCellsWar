@@ -17,9 +17,16 @@ class VCELLSWAR_API URTSVisualSettings : public UDeveloperSettings
 
 public:
 	// Ссылка на Блупринт вашего лазера. Будет видна в настройках проекта!
-	UPROPERTY(Config, EditAnywhere, Category = "Beams")
+	UPROPERTY(Config, EditAnywhere, Category = "BeamsBetweenTowers")
 	TSoftClassPtr<AActor> VisualLinkClass;
 	
-	UPROPERTY(Config, EditAnywhere, Category = "Beams")
+	UPROPERTY(Config, EditAnywhere, Category = "BlasterShoots")
 	TSoftClassPtr<AActor> VisualBlasterClass;
+	
+	UPROPERTY(Config, EditAnywhere, Category = "SelectDecal")
+	TSoftObjectPtr<UMaterialInterface> SelectionDecalMaterial;
+	
+	UPROPERTY(Config, EditAnywhere, Category = "SelectDecal")
+	TSoftObjectPtr<UMaterialInterface> MoveLineDecalMaterial;
+	
 };

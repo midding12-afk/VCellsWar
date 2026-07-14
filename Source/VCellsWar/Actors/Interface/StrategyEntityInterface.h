@@ -140,4 +140,7 @@ public:
 	
 	virtual void SetSelectedSectorGridIndex(int NewSelectedSectorGridIndex) = 0;
 	virtual int GetSelectedSectorGridIndex() = 0;
+	
+	// Возвращает true, если объект в данный момент обведен рамкой игрока
+	virtual bool NativeRTSIsEntitySelected() const { return false; }
 };

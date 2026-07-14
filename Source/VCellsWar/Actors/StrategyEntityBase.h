@@ -47,6 +47,11 @@ protected:
 	FGenericTeamId StructureTeamId;
 	
 	int SelectedSectorGridIndex = -1;
+	
+	// С++ компонент декали, который проецирует зеленый круг на землю под солдатом
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RTS | Selection")
+	class UDecalComponent* SelectionDecalComponent;
+	
 public:
 	// Нам НЕ нужны макросы UFUNCTION здесь! Они автоматически унаследовались из интерфейса.
 	//virtual void SetTeamColor_Implementation(FLinearColor NewColor) override {TeamColor = NewColor;};
@@ -67,4 +72,12 @@ public:
 	
 	virtual void SetSelectedSectorGridIndex(int NewSelectedSectorGridIndex) override {SelectedSectorGridIndex = NewSelectedSectorGridIndex;};
 	virtual int GetSelectedSectorGridIndex() override {return SelectedSectorGridIndex;};
+	
+	virtual bool NativeRTSIsEntitySelected() const override;
+	
+	UFUNCTION(BlueprintCallable, Category = "RTS | Selection")
+	virtual void SelectEntity() override;
+
+	UFUNCTION(BlueprintCallable, Category = "RTS | Selection")
+	virtual void DeselectEntity() override;
 };

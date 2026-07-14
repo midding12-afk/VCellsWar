@@ -10,6 +10,8 @@
 #include "StrategyEntityCharacter.h"
 #include "PortalBase.generated.h"
 
+class USphereComponent;
+
 UCLASS()
 class VCELLSWAR_API APortalBase : public AStrategyEntityBase, public IStructureNetIDInterface
 {
@@ -45,6 +47,8 @@ protected:
 	// Физическая функция спавна, которая дергает серверный пул
 	void ExecuteWaveSpawn();
 	
+	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
+	TObjectPtr<USphereComponent> SphereComponent;
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

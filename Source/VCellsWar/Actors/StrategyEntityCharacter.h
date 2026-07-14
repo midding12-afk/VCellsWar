@@ -81,14 +81,22 @@ public:
 	virtual void SetSelectedSectorGridIndex(int NewSelectedSectorGridIndex) override {SelectedSectorGridIndex = NewSelectedSectorGridIndex;};
 	virtual int GetSelectedSectorGridIndex() override {return SelectedSectorGridIndex;};
 	
+	virtual bool NativeRTSIsEntitySelected() const override;
+
 protected:
 	// С++ компонент декали, который проецирует зеленый круг на землю под солдатом
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RTS | Selection")
 	class UDecalComponent* SelectionDecalComponent;
 
 	// Ссылка на материал кольца (будет настраиваться в Блупринте)
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RTS | Selection")
-	class UMaterialInterface* SelectionDecalMaterial;
+	//UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RTS | Selection")
+	//class UMaterialInterface* SelectionDecalMaterial;
 	
 	int SelectedSectorGridIndex = -1;
+	
+	class UStrategyGridComponent* GridTrackingComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "Components")
+	class URTSPathVisualizerComponent* PathVisualizerComponent;
+	
 };

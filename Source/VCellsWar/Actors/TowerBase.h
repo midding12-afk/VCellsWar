@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "StrategyEntityPawn.h"
 #include "Interface/StructureNetIDInterface.h"
+#include "Components/CapsuleComponent.h"
 #include "TowerBase.generated.h"
 
 /**
@@ -25,6 +26,12 @@ protected:
 	
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "RTS | Logic")
 	int32 TowerId = -1;
+	
+	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
+	TObjectPtr<UCapsuleComponent> CapsuleComponent;
+	
+	/*UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	class USceneComponent* DummyRootComponent;*/
 
 public:	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;

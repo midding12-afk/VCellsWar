@@ -4,8 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "StrategyGridComponent.generated.h"
+
+class UNavigationPath;
 
 UCLASS(ClassGroup=(RTS), meta=(BlueprintSpawnableComponent))
 class VCELLSWAR_API UStrategyGridComponent : public UActorComponent
@@ -14,28 +15,24 @@ class VCELLSWAR_API UStrategyGridComponent : public UActorComponent
 
 public:	
 	UStrategyGridComponent();
-	virtual void BeginPlay() override;
-	void ActivateGridTracking(const bool bCanMove = false);
+
+	void ActivateGridTracking();
 	void DeactivateGridTracking();
+	
+	virtual void BeginPlay() override;
+	
+	void InitializeGridTracking();
+	void DeinitializeGridTracking();
 
 protected:	
 
-	// Воркер, который будет дергать подсистему секторов раз в секунду
+	/** Основной секундный воркер обновления вокселей */
 	void ManageGridSectorUpdate();
 
-	// Наш динамический С++ трекер движения. 
-	// Мы будем проверять скорость компонента перемещения без привязки к тяжелому тику.
-	void CheckMovementState();
-
 private:
-	// Ссылка на компонент движения владельца
-	UPROPERTY()
-	UCharacterMovementComponent* CachedMoveComp;
-
-	// Хэндлы наших оптимизированных таймеров
+	// Идентификатор циклического секундного таймера обновления секторов
 	FTimerHandle GridUpdateTimerHandle;
-	FTimerHandle MovementCheckTimerHandle;
 
-	// Координаты сектора, в котором юнит стоял при прошлой проверке
+	// Координаты сектора, в котором юнит находился при прошлой проверке
 	FIntPoint LastKnownSector;
 };

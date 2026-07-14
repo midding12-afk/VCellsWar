@@ -242,6 +242,7 @@ void AMainGamePlayerController::SetSelectedList(TArray<AActor*> NewSelectedUnits
 	
 	for (AActor* Actor : MySelectedUnits)
 	{
+		//GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Green, FString::Printf(TEXT("Selected: %s"), *Actor->GetName()));
 		if (IStrategyEntityInterface* EntityInterface = Cast<IStrategyEntityInterface>(Actor))
 		{
 			EntityInterface->SelectEntity(); 

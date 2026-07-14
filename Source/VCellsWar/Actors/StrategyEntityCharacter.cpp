@@ -8,6 +8,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Components/DecalComponent.h"
+#include "VCellsWar/RTSVisualSettings.h"
+#include "VCellsWar/Components/RTSPathVisualizerComponent.h"
 #include "VCellsWar/Components/StrategyGridComponent.h"
 
 // Sets default values
@@ -46,13 +48,16 @@ AStrategyEntityCharacter::AStrategyEntityCharacter()
 	SelectionDecalComponent->SetVisibility(false);
 	SelectionDecalComponent->SetHiddenInGame(true);
 	
-	UStrategyGridComponent* GridTrackingComponent = CreateDefaultSubobject<UStrategyGridComponent>(TEXT("GridTrackingComponent"));
+	GridTrackingComponent = CreateDefaultSubobject<UStrategyGridComponent>(TEXT("GridTrackingComponent"));
+	
+	PathVisualizerComponent = CreateDefaultSubobject<URTSPathVisualizerComponent>(TEXT("PathVisualizerComponent"));
 	
 	// Страховка: принудительно выключаем его нативный тяжелый Tick, 
 	// так как наш компонент работает на сверхскоростных изолированных таймерах! [1.5]
 	if (GridTrackingComponent)
 	{
 		GridTrackingComponent->PrimaryComponentTick.bCanEverTick = false;
+		
 	}
 		
 }
@@ -63,6 +68,15 @@ void AStrategyEntityCharacter::BeginPlay()
 	Super::BeginPlay();
 	
 	InitCharacter();
+	
+	/*FTimerHandle TestSelectionTimerHandle;
+	GetWorldTimerManager().SetTimer(
+		TestSelectionTimerHandle, 
+		this, 
+		&AStrategyEntityCharacter::SelectEntity, 
+		0.1f,                                  
+		false                                  
+	);*/
 }
 
 void AStrategyEntityCharacter::InitCharacter()
@@ -180,20 +194,20 @@ void AStrategyEntityCharacter::NativeRTSInitialize(int32 InFactionID, AMainGameP
 	}
 	
 	// В самом конце метода NativeRTSInitialize:
-	if (UStrategyGridComponent* GridComp = FindComponentByClass<UStrategyGridComponent>())
+	if (GridTrackingComponent)
 	{
 		// Просыпаемся! Юнит снова на радарах сетки, таймеры взведены
-		GridComp->ActivateGridTracking(true); 
+		GridTrackingComponent->InitializeGridTracking(); 
 	}
 }
 
 void AStrategyEntityCharacter::NativeRTSDeinitialize()
 {
 	// В самом конце метода NativeRTSInitialize:
-	if (UStrategyGridComponent* GridComp = FindComponentByClass<UStrategyGridComponent>())
+	if (GridTrackingComponent)
 	{
 		// Просыпаемся! Юнит снова на радарах сетки, таймеры взведены
-		GridComp->DeactivateGridTracking();
+		GridTrackingComponent->DeinitializeGridTracking();
 	}
 }
 
@@ -204,7 +218,7 @@ void AStrategyEntityCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	//if (HasAuthority()) 
-		GEngine->AddOnScreenDebugMessage(uint64(this), 0.0f, FColor::White, *FString::Printf(TEXT("I am ID: %d at %s"), CachedFactionID, *GetActorLocation().ToString()));
+	//	GEngine->AddOnScreenDebugMessage(uint64(this), 0.0f, FColor::White, *FString::Printf(TEXT("I am ID: %d at %s"), CachedFactionID, *GetActorLocation().ToString()));
 }
 
 void AStrategyEntityCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -214,6 +228,8 @@ void AStrategyEntityCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(AStrategyEntityCharacter, OwningPlayerState);
 	
 	//DOREPLIFETIME(AStrategyEntityCharacter, CachedFactionID);
+	
+	DOREPLIFETIME(AStrategyEntityCharacter, PathVisualizerComponent);
 }
 
 void AStrategyEntityCharacter::SetGenericTeamId(const FGenericTeamId& NewTeamID)
@@ -325,10 +341,15 @@ void AStrategyEntityCharacter::SelectEntity()
 {
 	if (SelectionDecalComponent)
 	{
+		const URTSVisualSettings* Settings = GetDefault<URTSVisualSettings>();
+		if (!Settings) return;
+	
+		UMaterialInterface* DecalMaterial = Settings->SelectionDecalMaterial.LoadSynchronous();
+		
 		// Если материал кольца задан — принудительно накатываем его на декаль
-		if (SelectionDecalMaterial && SelectionDecalComponent->GetDecalMaterial() == nullptr)
+		if (DecalMaterial && SelectionDecalComponent->GetDecalMaterial() == nullptr)
 		{
-			SelectionDecalComponent->SetDecalMaterial(SelectionDecalMaterial);
+			SelectionDecalComponent->SetDecalMaterial(DecalMaterial);
 		}
 
 		// Будим и показываем зеленое кольцо под ногами!
@@ -345,6 +366,15 @@ void AStrategyEntityCharacter::DeselectEntity()
 		SelectionDecalComponent->SetVisibility(false);
 		SelectionDecalComponent->SetHiddenInGame(true);
 	}
+	
+	if (PathVisualizerComponent)
+	{
+		PathVisualizerComponent->SetNewMoveDestination(FVector::Zero());
+	}
 }
 
+bool AStrategyEntityCharacter::NativeRTSIsEntitySelected() const
+{
+	return SelectionDecalComponent && SelectionDecalComponent->IsVisible();
+}
 

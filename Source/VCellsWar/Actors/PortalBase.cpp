@@ -5,6 +5,8 @@
 
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Components/DecalComponent.h"
+#include "Components/SphereComponent.h"
 #include "VCellsWar/AI/StrategyAIController.h"
 #include "VCellsWar/GameMods/MainGameGameModeBase.h"
 #include "VCellsWar/GameMods/MainGameGameState.h"
@@ -16,6 +18,26 @@ APortalBase::APortalBase()
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
+	SelectionDecalComponent->DecalSize = FVector(100.0f, 900.0f, 900.0f);
+	
+	
+	
+	// Шаг 2: Создаем и настраиваем гигантскую капсулу коллизии башни
+	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("PortalSphereCollision"));
+	
+	// Привязываем капсулу к нашему новому корню-хотспоту
+	SphereComponent->SetupAttachment(RootComponent);
+	
+	SphereComponent->SetSphereRadius(450.0f);
+	
+	SphereComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);
+	SphereComponent->CanCharacterStepUpOn = ECB_No;
+	SphereComponent->SetShouldUpdatePhysicsVolume(true);
+	SphereComponent->SetCanEverAffectNavigation(false);
+	SphereComponent->bDynamicObstacle = true;
+
+	SphereComponent->SetRelativeLocation(FVector(0.0f, 0.0f, -200));
+	
 }
 
 void APortalBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -123,10 +145,13 @@ void APortalBase::ExecuteWaveSpawn()
 	// Получаем нашу изолированную серверную подсистему пула объектов
 	//UServerNetworkPoolSubsystem* ServerPool = GetWorld()->GetSubsystem<UServerNetworkPoolSubsystem>();
 	
+	
+	
 	if (ServerPool)
 	{
 		AMainGamePlayerState* PS = Execute_GetEntityOwnerState(this);
-		if (!PS) return;
+		APlayerController* PC = PS->GetPlayerController();
+		if (!PS || !PC) return;
 		
 		FVector ForwardVec = GetActorForwardVector();
 		FVector SpawnLocation = GetActorLocation();
@@ -179,7 +204,13 @@ void APortalBase::ExecuteWaveSpawn()
 			if (Soldier)
 			{
 				// Перезаписываем финальные параметры поверх инициализированной памяти
-				Soldier->SetEntityOwner(PS);            
+				Soldier->SetEntityOwner(PS);      
+				Soldier->SetOwner(PC);
+				
+				if (AAIController* AIC = Cast<AAIController>(Soldier->GetController()))
+				{
+					AIC->SetOwner(PC);
+				}
 	
 				// Насильно прописываем честную фракцию портала внутрь ИИ-контроллера и кэша тела! 
 				Soldier->SetGenericTeamId(FGenericTeamId(GetGenericTeamId()));

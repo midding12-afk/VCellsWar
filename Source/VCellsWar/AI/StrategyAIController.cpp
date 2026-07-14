@@ -6,14 +6,14 @@
 #include "StateTreeEvents.h"               // Для корректной рефлексии FStateTreeEvent
 #include "GameplayTagsManager.h"
 
-#include "AbilitySystemComponent.h"
 #include "VCellsWar/RTSVisualSettings.h"
 #include "VCellsWar/Actors/BlasterBase.h"
 #include "VCellsWar/GameMods/MainGamePlayerState.h"
 #include "VCellsWar/Actors/StrategyEntityCharacter.h"
+#include "VCellsWar/Components/RTSPathVisualizerComponent.h"
+#include "VCellsWar/Components/StrategyGridComponent.h"
 #include "VCellsWar/GameMods/MainGameGameState.h"
 #include "VCellsWar/Systems/LocalGraphicsPoolSubsystem.h"
-#include "VCellsWar/Systems/ServerNetworkPoolSubsystem.h"
 
 AStrategyAIController::AStrategyAIController()
 {
@@ -80,5 +80,34 @@ void AStrategyAIController::Command_MoveTo(FVector TargetLocation)
 		
 		// Нам БОЛЬШЕ НЕ НУЖЕН Payload.InitializeAs! Сеть и память чисты.
 		STComp->SendStateTreeEvent(Event);
+		
+		APawn* MyPawn = GetPawn();
+		if (!MyPawn) return;
+		
+		if (UStrategyGridComponent* GridComp = MyPawn->FindComponentByClass<UStrategyGridComponent>())
+		{
+			GridComp->ActivateGridTracking();
+		}
+		
+		if (URTSPathVisualizerComponent* PathComp = MyPawn->FindComponentByClass<URTSPathVisualizerComponent>())
+		{
+			//PathComp->ActivateTracking();
+			PathComp->SetNewMoveDestination(TargetLocation);
+		}
+	}
+}
+
+void AStrategyAIController::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
+{
+	Super::OnMoveCompleted(RequestID, Result);
+
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn) return;
+
+	// ГАШЕНИЕ ТАЙМЕРА: Юнит остановился и замер.
+	// Компонент мгновенно очищает секундный таймер в ноль, освобождая процессор!
+	if (UStrategyGridComponent* GridComp = MyPawn->FindComponentByClass<UStrategyGridComponent>())
+	{
+		GridComp->DeactivateGridTracking();
 	}
 }

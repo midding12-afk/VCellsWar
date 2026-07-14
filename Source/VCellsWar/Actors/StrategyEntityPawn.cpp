@@ -4,7 +4,9 @@
 #include "StrategyEntityPawn.h"
 
 #include "GenericTeamAgentInterface.h"
+#include "Components/DecalComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "VCellsWar/RTSVisualSettings.h"
 
 // Sets default values
 AStrategyEntityPawn::AStrategyEntityPawn()
@@ -23,6 +25,27 @@ AStrategyEntityPawn::AStrategyEntityPawn()
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	
 	OwningPlayerState = nullptr;
+	
+	USceneComponent* DummyRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DummyRoot"));
+	RootComponent = DummyRootComponent;	
+	
+	
+	// Создаем компонент декали выделения
+	SelectionDecalComponent = CreateDefaultSubobject<UDecalComponent>(TEXT("SelectionDecalComponent"));
+	SelectionDecalComponent->SetupAttachment(RootComponent);
+
+	// Разворачиваем декаль строго вертикально вниз (лицом к земле)
+	SelectionDecalComponent->SetRelativeRotation(FRotator(-90.0f, 0.0f, 0.0f));
+
+	// Настраиваем 3D-размер проекционного куба декали (X - глубина луча, Y и Z - радиус круга)
+	// Размер 64, 45, 45 идеально накроет землю под стандартной капсулой
+	SelectionDecalComponent->DecalSize = FVector(64.0f, 90.0f, 90.0f);
+	
+	SelectionDecalComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0));
+
+	// По умолчанию кольцо полностью выключено и скрыто в игре
+	SelectionDecalComponent->SetVisibility(false);
+	SelectionDecalComponent->SetHiddenInGame(true);
 }
 
 // Called when the game starts or when spawned
@@ -71,5 +94,41 @@ FGenericTeamId AStrategyEntityPawn::GetGenericTeamId() const
 	}
 
 	return FGenericTeamId::NoTeam;
+}
+
+void AStrategyEntityPawn::SelectEntity()
+{
+	if (SelectionDecalComponent)
+	{
+		const URTSVisualSettings* Settings = GetDefault<URTSVisualSettings>();
+		if (!Settings) return;
+	
+		UMaterialInterface* DecalMaterial = Settings->SelectionDecalMaterial.LoadSynchronous();
+		
+		// Если материал кольца задан — принудительно накатываем его на декаль
+		if (DecalMaterial && SelectionDecalComponent->GetDecalMaterial() == nullptr)
+		{
+			SelectionDecalComponent->SetDecalMaterial(DecalMaterial);
+		}
+
+		// Будим и показываем зеленое кольцо под ногами!
+		SelectionDecalComponent->SetVisibility(true);
+		SelectionDecalComponent->SetHiddenInGame(false);
+	}
+}
+
+void AStrategyEntityPawn::DeselectEntity()
+{
+	if (SelectionDecalComponent)
+	{
+		// Полностью тушим и скрываем кольцо, когда игрок сбросил выделение
+		SelectionDecalComponent->SetVisibility(false);
+		SelectionDecalComponent->SetHiddenInGame(true);
+	}
+}
+
+bool AStrategyEntityPawn::NativeRTSIsEntitySelected() const
+{
+	return SelectionDecalComponent && SelectionDecalComponent->IsVisible();
 }
 

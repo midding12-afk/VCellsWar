@@ -151,7 +151,7 @@ void ABlasterBase::OnProjectileOverlap(UPrimitiveComponent* OverlappedComp, AAct
 		
 		if (OwnerFactionID != TargetFactionID && OwnerFactionID != 255 && TargetFactionID != 255)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, *FString::Printf(TEXT("SERVER PROJECTILE OVERLAP: %d to %d"), OwnerFactionID, TargetFactionID));
+			//GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, *FString::Printf(TEXT("SERVER PROJECTILE OVERLAP: %d to %d"), OwnerFactionID, TargetFactionID));
 			
 			// Списываем ХП у серверного оригинала!
 			// Проверка if (!HasAuthority()) внутри чарактера пропустит вызов, 
