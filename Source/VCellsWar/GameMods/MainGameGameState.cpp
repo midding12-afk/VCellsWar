@@ -3,6 +3,7 @@
 
 #include "MainGameGameState.h"
 
+#include "MainGamePlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "VCellsWar/RTSVisualSettings.h"
 #include "VCellsWar/Actors/BlasterBase.h"
@@ -48,6 +49,23 @@ void AMainGameGameState::Tick(float DeltaTime)
 	
 }
 
+AMainGamePlayerState* AMainGameGameState::GetPlayerState(int32 PlayerIndex) const
+{
+	for (APlayerState* PS : PlayerArray)
+	{
+		AMainGamePlayerState* MGPS = Cast<AMainGamePlayerState>(PS);
+		if (MGPS)
+		{
+			if (MGPS->GetGenericTeamId()==PlayerIndex)
+			{
+				return MGPS;
+			}
+		}
+	}
+	
+	return nullptr;
+}
+
 
 void AMainGameGameState::OnRep_MapSeed()
 {
@@ -80,6 +98,11 @@ void AMainGameGameState::OnRep_CachedDeloneEdgesTowerID()
 	OnCachedDeloneEdgesTowerIDChangedBP.Broadcast(CachedDeloneEdgesTowerID);	
 }
 
+void AMainGameGameState::Multicast_InvocLinksUpdate_Implementation()
+{
+	OnCachedDeloneEdgesTowerIDChangedBP.Broadcast(CachedDeloneEdgesTowerID);	
+}
+
 void AMainGameGameState::Server_RegisterRTSShot(const FVector& Origin, const FVector& Direction, uint8 PlayerID)
 {
 	if (!HasAuthority()) return;
@@ -100,6 +123,15 @@ void AMainGameGameState::AddTeamIDColor(int32 TeamId, FLinearColor TeamColor)
 		// Перезаписываем цвет строго в ячейку этого игрока!
 		AllTeamsColors[TeamId] = TeamColor;
 	}
+}
+
+FLinearColor AMainGameGameState::GetTeamColor(int32 TeamId)
+{
+	if (AllTeamsColors.IsValidIndex(TeamId))
+	{
+		return  AllTeamsColors[TeamId];
+	}
+	return  FLinearColor::Gray;
 }
 
 void AMainGameGameState::Multicast_BroadcastRTSShotsBatch_Implementation(const TArray<FRTSShotData>& ShotsBatch)

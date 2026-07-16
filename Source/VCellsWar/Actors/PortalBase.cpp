@@ -157,7 +157,7 @@ void APortalBase::ExecuteWaveSpawn()
 		FVector SpawnLocation = GetActorLocation();
 		
 		//TODO with GAS
-		int32 Count = 100;	
+		int32 Count = 10;	
 		for (int Index = 0; Index < Count; Index++)
 		{
 			float AngleDegrees = 360.f/Count * Index;

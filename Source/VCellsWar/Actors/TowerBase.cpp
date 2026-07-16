@@ -76,16 +76,44 @@ void ATowerBase::BeginPlay()
 		}		
 	}
 	
-	
-	
-	/*FTimerHandle TestSelectionTimerHandle;
-	GetWorldTimerManager().SetTimer(
-		TestSelectionTimerHandle, 
-		this, 
-		&ATowerBase::SelectEntity, 
-		1.1f,                                  
-		false                                  
-	);*/
+	UStaticMeshComponent* BlueprintTowerMesh = FindComponentByClass<UStaticMeshComponent>();
+
+	if (BlueprintTowerMesh)
+	{
+
+		// СОЗДАЕМ ДИНАМИЧЕСКИЙ МАТЕРИАЛ ДЛЯ ПРОЦЕДУРНЫХ ШКАЛ ХП
+		// Превращаем дефолтный материал блупринт-меша в динамический экземпляр
+		 DynamicTowerMaterial = BlueprintTowerMesh->CreateAndSetMaterialInstanceDynamic(0);
+
+		if (DynamicTowerMaterial)
+		{
+			// Выставляем стартовые неоновые параметры шкалы высоты Z
+			DynamicTowerMaterial->SetScalarParameterValue(TEXT("HealthProgress"), (float)HealthBarProgress / 255.0f);
+			
+			if (AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState()))
+				DynamicTowerMaterial->SetVectorParameterValue(TEXT("HealthBarColor"), GS->GetTeamColor(HealthBarTeamIDColor));
+			else
+				DynamicTowerMaterial->SetVectorParameterValue(TEXT("HealthBarColor"), FLinearColor(0.15f, 0.15f, 0.15f, 1.0f));
+		}
+	}
+
+}
+
+void ATowerBase::OnRep_HealthBarProgress()
+{
+	if (DynamicTowerMaterial)
+	{
+		DynamicTowerMaterial->SetScalarParameterValue(TEXT("HealthProgress"), (float)HealthBarProgress / 255.0f);
+	}
+}
+
+void ATowerBase::OnRep_HealthBarTeamIDColor()
+{
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+	if (GS && DynamicTowerMaterial)
+	{		
+		DynamicTowerMaterial->SetVectorParameterValue(TEXT("HealthBarColor"), GS->GetTeamColor(HealthBarTeamIDColor));
+	}
 }
 
 void ATowerBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -93,6 +121,8 @@ void ATowerBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ATowerBase, TowerId);
+	DOREPLIFETIME(ATowerBase, HealthBarProgress);
+	DOREPLIFETIME(ATowerBase, HealthBarTeamIDColor);
 }
 
 void ATowerBase::Tick(float DeltaTime)
@@ -100,10 +130,76 @@ void ATowerBase::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-// void ATowerBase::Server_SetTowerId(int32 NewTowerId)
-// {
-// 	if (HasAuthority())
-// 	{
-// 		TowerId = NewTowerId;
-// 	}
-// }
+void ATowerBase::GeinDamage(float Damage, int32 InstigatorTeamID)
+{
+	if (!HasAuthority()) return;
+	Super::GeinDamage(Damage, InstigatorTeamID);
+	
+	if (GetGenericTeamId() == InstigatorTeamID) return;
+	
+	float MaxHealth = MaxHealthWithoutOwner; //TODO + from gas or upgrades
+	
+	if (OwningPlayerState)
+	{
+		CurrentOwningProgressInHealthPoint -= Damage;
+		
+		if (CurrentOwningProgressInHealthPoint <= 0)
+		{
+			HealthBarTeamIDColor = 255;
+			SetEntityOwner(nullptr);
+			SetOwner(nullptr);
+			CurrentOwningProgressInHealthPoint = 0;
+			OnRep_HealthBarTeamIDColor();
+			AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+			if (GS)
+			{
+				GS->Multicast_InvocLinksUpdate();
+			}	
+		}			
+	}
+	else
+	{
+		if (HealthBarTeamIDColor == InstigatorTeamID)
+		{
+			CurrentOwningProgressInHealthPoint += Damage;
+			
+			if (CurrentOwningProgressInHealthPoint >= MaxHealth)
+			{
+				CurrentOwningProgressInHealthPoint = MaxHealth;
+				
+				AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+				if (GS)
+				{
+					//HealthBarTeamIDColor=InstigatorTeamID;
+					
+					AMainGamePlayerState* PS = GS->GetPlayerState(InstigatorTeamID);
+					if (!PS) return;
+					SetEntityOwner(PS);
+					APlayerController* PC = PS->GetPlayerController();
+					SetOwner(PC);
+					OnRep_HealthBarTeamIDColor();
+
+					if (GS)
+					{
+						GS->Multicast_InvocLinksUpdate();
+					}	
+				}					
+			}
+		}
+		else
+		{
+			
+			CurrentOwningProgressInHealthPoint -= Damage;
+		
+			if (CurrentOwningProgressInHealthPoint < 0)
+			{
+				CurrentOwningProgressInHealthPoint = 0;
+				HealthBarTeamIDColor=InstigatorTeamID;
+				OnRep_HealthBarTeamIDColor();
+			}
+		}
+	}
+	
+	HealthBarProgress = FMath::Clamp(FMath::RoundToInt(CurrentOwningProgressInHealthPoint/MaxHealth * 255.f),0,255);
+	OnRep_HealthBarProgress();	
+}

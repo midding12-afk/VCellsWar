@@ -247,6 +247,8 @@ void AMainGameGameModeBase::SpawnNodesFromSubsystem()
     	if (NewActor)
     	{
     		IStructureNetIDInterface::Execute_Server_SetStructureNetID(NewActor, LinkedStructuresCounter);
+    		
+    		NewActor->NativeRTSInitialize(254, nullptr, SpawnTransform);
     		//NewActor->Server_SetStructureNetID(LinkedStructuresCounter);
 			
     		UGameplayStatics::FinishSpawningActor(NewActor, SpawnTransform);

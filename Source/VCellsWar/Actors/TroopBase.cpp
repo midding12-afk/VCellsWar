@@ -5,10 +5,10 @@
 
 #include "VCellsWar/Systems/ServerNetworkPoolSubsystem.h"
 
-void ATroopBase::GeinDamage(float Damage)
+void ATroopBase::GeinDamage(float Damage, int32 InstigatorTeamID)
 {
 	if (!HasAuthority()) return;
-	Super::GeinDamage(Damage);
+	Super::GeinDamage(Damage, InstigatorTeamID);
 	
 	NativeRTSDeinitialize();
 	

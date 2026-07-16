@@ -32,6 +32,28 @@ protected:
 	
 	/*UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	class USceneComponent* DummyRootComponent;*/
+	
+	UPROPERTY(ReplicatedUsing=OnRep_HealthBarProgress)
+	uint8 HealthBarProgress = 0;
+	
+	UPROPERTY(ReplicatedUsing=OnRep_HealthBarTeamIDColor)
+	uint8 HealthBarTeamIDColor = 255;
+	
+	UFUNCTION()
+	void OnRep_HealthBarProgress();
+	
+	UFUNCTION()
+	void OnRep_HealthBarTeamIDColor();
+	
+	UPROPERTY()
+	UMaterialInstanceDynamic* DynamicTowerMaterial;
+	
+	UPROPERTY()
+	int32 MaxHealthWithoutOwner = 100;
+	
+	UPROPERTY()
+	int32 CurrentOwningProgressInHealthPoint = 0;
+	
 
 public:	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -44,4 +66,6 @@ public:
 	
 	virtual int32 GetStructureNetID_Implementation() override {return TowerId;};
 	virtual void Server_SetStructureNetID_Implementation(int32 NewID) override {if (HasAuthority()) TowerId =  NewID;};
+	
+	virtual void GeinDamage(float Damage, int32 InstigatorTeamID) override;
 };

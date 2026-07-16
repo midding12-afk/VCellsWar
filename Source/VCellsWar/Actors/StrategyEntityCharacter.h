@@ -94,6 +94,7 @@ protected:
 	
 	int SelectedSectorGridIndex = -1;
 	
+	UPROPERTY()
 	class UStrategyGridComponent* GridTrackingComponent;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "Components")

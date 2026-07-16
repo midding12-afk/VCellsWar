@@ -125,7 +125,7 @@ public:
 	// Пишем базовую дефолтную реализацию прямо здесь (для безопасности)
 	virtual int32 GetEntityFactionID_Implementation() const { return 255; }
 	
-	virtual void GeinDamage(float Damage) {};
+	virtual void GeinDamage(float Damage, int32 InstigatorTeamID) {};
 	
 	// С++ метод интерфейса для мгновенного запекания данных внутри лямбды спавна
 	//virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState) {}

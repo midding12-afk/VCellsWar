@@ -25,6 +25,8 @@ void UStrategyGridSubsystem::RegisterEntity(AActor* Entity)
 	if (!Entity) return;
 	IStrategyEntityInterface* Soldier = Cast<IStrategyEntityInterface>(Entity);
 	if (!Soldier) return;
+	
+	if (ActorToSectorMap.Find(Entity)) return;
 
 	int32 FactionId = GetFactionIdFromActor(Entity);
 	FIntPoint SectorCoords = GetSectorCoords(Entity->GetActorLocation());

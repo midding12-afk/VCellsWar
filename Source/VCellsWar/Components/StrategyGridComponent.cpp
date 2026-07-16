@@ -14,13 +14,20 @@ void UStrategyGridComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	ActivateGridTracking();
+	// AActor* Owner = GetOwner();
+	// if (!Owner || !GetWorld()) return;
+	// if (GetWorld()->GetNetMode() == NM_Client) return;
+	// if (!Owner->HasAuthority()) return;
+	
+	//ActivateGridTracking();
 }
 
 void UStrategyGridComponent::InitializeGridTracking()
 {
 	AActor* Owner = GetOwner();
-	if (!Owner || !GetWorld() || !Owner->HasAuthority()) return;
+	if (!Owner || !GetWorld()) return;
+	if (GetWorld()->GetNetMode() == NM_Client) return;
+	if (!Owner->HasAuthority()) return;
 
 	if (UStrategyGridSubsystem* GridSubsystem = GetWorld()->GetSubsystem<UStrategyGridSubsystem>())
 	{
@@ -44,6 +51,8 @@ void UStrategyGridComponent::ActivateGridTracking()
 	AActor* Owner = GetOwner();
 	if (!Owner || !GetWorld() || !Owner->HasAuthority()) return;
 	
+	if (GetWorld()->GetNetMode() == NM_Client) return;
+	
 	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
 	if (!TimerManager.IsTimerActive(GridUpdateTimerHandle))
 	{
@@ -65,6 +74,12 @@ void UStrategyGridComponent::ManageGridSectorUpdate()
 {
 	AActor* Owner = GetOwner();
 	if (!Owner || !GetWorld() || !Owner->HasAuthority()) return;
+	
+	if (GetWorld()->GetNetMode() == NM_Client)
+	{
+		DeactivateGridTracking();
+		return;
+	}
 
 	if (UStrategyGridSubsystem* GridSubsystem = GetWorld()->GetSubsystem<UStrategyGridSubsystem>())
 	{

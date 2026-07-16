@@ -110,4 +110,10 @@ void AStrategyAIController::OnMoveCompleted(FAIRequestID RequestID, const FPathF
 	{
 		GridComp->DeactivateGridTracking();
 	}
+	
+	/*if (URTSPathVisualizerComponent* PathComp = MyPawn->FindComponentByClass<URTSPathVisualizerComponent>())
+	{
+		//PathComp->ActivateTracking();
+		PathComp->DeactivateTracking();
+	}*/
 }

@@ -142,10 +142,10 @@ void ABlasterBase::OnProjectileOverlap(UPrimitiveComponent* OverlappedComp, AAct
 
 	if (OtherActor->IsA(ABlasterBase::StaticClass())) return;
 
-	if (AStrategyEntityCharacter* StrategyChar = Cast<AStrategyEntityCharacter>(OtherActor))
+	if (IStrategyEntityInterface* StrategyChar = Cast<IStrategyEntityInterface>(OtherActor))
 	{
 		// Серверная пуля врежется СТРОГО в корневую капсулу серверного оригинала (высота Z=123/89)!
-		int32 TargetFactionID = StrategyChar->GetRTSFactionIDDirect();
+		int32 TargetFactionID = StrategyChar->GetEntityFactionID_Implementation();
 
 		//
 		
@@ -156,9 +156,9 @@ void ABlasterBase::OnProjectileOverlap(UPrimitiveComponent* OverlappedComp, AAct
 			// Списываем ХП у серверного оригинала!
 			// Проверка if (!HasAuthority()) внутри чарактера пропустит вызов, 
 			// и солдат матча успешно улетит в пул резерва сервера!
-			StrategyChar->GeinDamage(1.f);
+			StrategyChar->GeinDamage(1.f, OwnerFactionID);
 			
-			ReturnToPool();
+			//ReturnToPool();
 		}
 	}
 }

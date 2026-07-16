@@ -14,6 +14,6 @@ class VCELLSWAR_API ATroopBase : public AStrategyEntityCharacter
 {
 	GENERATED_BODY()
 public:	
-	UFUNCTION(BlueprintCallable)
-	virtual void GeinDamage(float Damage) override;
+
+	virtual void GeinDamage(float Damage, int32 InstigatorTeamID) override;
 };

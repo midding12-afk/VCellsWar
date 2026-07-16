@@ -83,6 +83,9 @@ public:
 	void OnRep_CachedDeloneEdgesTowerID(); 
 	
 	void InvocLinksUpdate() {OnRep_CachedDeloneEdgesTowerID();};
+	
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_InvocLinksUpdate();
 		
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCachedDeloneEdgesTowerIDChanged, TArray<FDeloneGraphEdge>, DeloneEdgesTowerID);
 	UPROPERTY(BlueprintAssignable, Category = "Map Settings|UI")
@@ -97,8 +100,11 @@ public:
 	void Server_RegisterRTSShot(const FVector& Origin, const FVector& Direction, uint8 PlayerID);
 	
 	void AddTeamIDColor(int32 TeamId, FLinearColor TeamColor);
+	FLinearColor GetTeamColor(int32 TeamId);
 	
 	virtual void Tick(float DeltaTime) override;
+	
+	class AMainGamePlayerState* GetPlayerState(int32 PlayerIndex) const;
 	
 private:
 	// Временный серверный буфер, который копит выстрелы текущего кадра

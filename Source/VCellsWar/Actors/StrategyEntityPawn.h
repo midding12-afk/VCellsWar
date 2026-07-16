@@ -20,6 +20,8 @@ public:
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	
+	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override;
 
 public:	
 	// Called every frame
@@ -34,7 +36,7 @@ public:
 protected:
 	// Самый главный указатель. Реплицируется от сервера к клиентам.
 	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerState, BlueprintReadOnly, Category = "Strategy | Ownership")
-	AMainGamePlayerState* OwningPlayerState;
+	AMainGamePlayerState* OwningPlayerState=nullptr;
 	
 	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerColor, BlueprintReadOnly, Category = "Strategy | Ownership")
 	FLinearColor OwningPlayerColor = FLinearColor::Gray*0.3f;
@@ -57,6 +59,16 @@ protected:
 	// С++ компонент декали, который проецирует зеленый круг на землю под солдатом
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RTS | Selection")
 	UDecalComponent* SelectionDecalComponent;
+	
+	UPROPERTY()
+	class UStrategyGridComponent* GridTrackingComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "Components")
+	class URTSPathVisualizerComponent* PathVisualizerComponent;
+	
+	UPROPERTY()
+	int32 CachedFactionID = 255;
+	
 	
 public:
 	// Нам НЕ нужны макросы UFUNCTION здесь! Они автоматически унаследовались из интерфейса.
@@ -81,4 +93,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "RTS | Selection")
 	virtual void DeselectEntity() override;
+	
+	virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform) override;
+	virtual void NativeRTSDeinitialize() override;
 };
