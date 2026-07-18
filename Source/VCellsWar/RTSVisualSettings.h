@@ -29,4 +29,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "SelectDecal")
 	TSoftObjectPtr<UMaterialInterface> MoveLineDecalMaterial;
 	
+	UPROPERTY(Config, EditAnywhere, Category = "Minimap")
+	TSoftObjectPtr<class UNiagaraSystem> MinimapNiagaraAsset;
+	
 };

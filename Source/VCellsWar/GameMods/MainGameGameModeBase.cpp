@@ -202,9 +202,10 @@ void AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 				
 			if (DeferredPortal)
 			{
-				DeferredPortal->SetEntityOwner(PS);
+				DeferredPortal->NativeRTSInitialize(PS->GetGenericTeamId(), PS, SpawnTransform);
+				//DeferredPortal->SetEntityOwner(PS);
 				DeferredPortal->Server_SetNextSpawnDelay(0.f);
-				DeferredPortal->SetGenericTeamId(PS->GetGenericTeamId());
+				//DeferredPortal->SetGenericTeamId(PS->GetGenericTeamId());
 				IStructureNetIDInterface::Execute_Server_SetStructureNetID(DeferredPortal, LinkedStructuresCounter);
 				UGameplayStatics::FinishSpawningActor(DeferredPortal, SpawnTransform);
 			}
@@ -373,9 +374,9 @@ void AMainGameGameModeBase::UnregisterTower(ATowerBase* OldTower)
 
 void AMainGameGameModeBase::ProcessStrategyLogicTick()
 {
-	// ЦЕНТРАЛЬНЫЙ СЕРВЕРНЫЙ ТИК СТРАТЕГИИ
+	/*// ЦЕНТРАЛЬНЫЙ СЕРВЕРНЫЙ ТИК СТРАТЕГИИ
 	// Здесь мы одной легкой итерацией обрабатываем логику ВСЕХ порталов сразу!
-	for (APortalBase* Portal : ActivePortals)
+	for (APortalBase* Portal : ActivePortals)`
 	{
 		if (Portal)
 		{
@@ -395,7 +396,7 @@ void AMainGameGameModeBase::ProcessStrategyLogicTick()
 				
 			}
 		}
-	}
+	}*/
 }
 
 void AMainGameGameModeBase::EndPlay(const EEndPlayReason::Type EndPlayReason)

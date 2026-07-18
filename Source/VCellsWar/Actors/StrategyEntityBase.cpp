@@ -6,6 +6,7 @@
 #include "Components/DecalComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "VCellsWar/RTSVisualSettings.h"
+#include "VCellsWar/Systems/RTSMinimapSubsystem.h"
 
 
 AStrategyEntityBase::AStrategyEntityBase()
@@ -53,6 +54,7 @@ void AStrategyEntityBase::BeginPlay()
 	
 }
 
+
 void AStrategyEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -61,6 +63,36 @@ void AStrategyEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(AStrategyEntityBase, OwningPlayerState);
 }
 
+void AStrategyEntityBase::NativeRTSInitialize(int32 InFactionID, AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform)
+{
+	// 1. Запекаем базовые RTS параметры памяти
+	SetEntityOwner(InOwnerState);
+	SetGenericTeamId(FGenericTeamId(InFactionID));
+	
+	bReplicates = true;
+	bAlwaysRelevant = true; 
+	
+	
+	// 3. СИНХРОННАЯ ТЕЛЕПОРТАЦИЯ ФИЗИКИ CHAOS
+	// Так как коллизия уже включена строчкой выше, метод обновит матрицы Chaos со 100% точностью 
+	SetActorTransform(InSpawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
+
+	
+	URTSMinimapSubsystem* Minimap = GetWorld()->GetSubsystem<URTSMinimapSubsystem>();
+	if (Minimap)
+	{
+		Minimap->RegisterEntity(this);
+	}
+}
+
+void AStrategyEntityBase::NativeRTSDeinitialize()
+{	
+	URTSMinimapSubsystem* Minimap = GetWorld()->GetSubsystem<URTSMinimapSubsystem>();
+	if (Minimap)
+	{
+		Minimap->UnregisterEntity(this);
+	}
+}
 
 void AStrategyEntityBase::OnRep_OwningPlayerState()
 {

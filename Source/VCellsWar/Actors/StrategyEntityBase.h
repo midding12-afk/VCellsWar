@@ -80,4 +80,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "RTS | Selection")
 	virtual void DeselectEntity() override;
+	
+	virtual void NativeRTSInitialize(int32 InFactionID, class AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform) override;
+	virtual void NativeRTSDeinitialize() override;
 };

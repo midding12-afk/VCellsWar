@@ -10,6 +10,7 @@
 #include "VCellsWar/RTSVisualSettings.h"
 #include "VCellsWar/Components/RTSPathVisualizerComponent.h"
 #include "VCellsWar/Components/StrategyGridComponent.h"
+#include "VCellsWar/Systems/RTSMinimapSubsystem.h"
 
 // Sets default values
 AStrategyEntityPawn::AStrategyEntityPawn()
@@ -131,6 +132,12 @@ void AStrategyEntityPawn::NativeRTSInitialize(int32 InFactionID, AMainGamePlayer
 		// Просыпаемся! Юнит снова на радарах сетки, таймеры взведены
 		GridTrackingComponent->InitializeGridTracking(); 
 	}
+	
+	URTSMinimapSubsystem* Minimap = GetWorld()->GetSubsystem<URTSMinimapSubsystem>();
+	if (Minimap)
+	{
+		Minimap->RegisterEntity(this);
+	}
 }
 
 void AStrategyEntityPawn::NativeRTSDeinitialize()
@@ -140,6 +147,12 @@ void AStrategyEntityPawn::NativeRTSDeinitialize()
 	{
 		// Просыпаемся! Юнит снова на радарах сетки, таймеры взведены
 		GridTrackingComponent->DeinitializeGridTracking();
+	}
+	
+	URTSMinimapSubsystem* Minimap = GetWorld()->GetSubsystem<URTSMinimapSubsystem>();
+	if (Minimap)
+	{
+		Minimap->UnregisterEntity(this);
 	}
 }
 

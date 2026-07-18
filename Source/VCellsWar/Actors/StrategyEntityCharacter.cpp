@@ -11,6 +11,7 @@
 #include "VCellsWar/RTSVisualSettings.h"
 #include "VCellsWar/Components/RTSPathVisualizerComponent.h"
 #include "VCellsWar/Components/StrategyGridComponent.h"
+#include "VCellsWar/Systems/RTSMinimapSubsystem.h"
 
 // Sets default values
 AStrategyEntityCharacter::AStrategyEntityCharacter()
@@ -141,6 +142,8 @@ void AStrategyEntityCharacter::InitCharacter()
 		SelectionDecalComponent->SetVisibility(false);
 		SelectionDecalComponent->SetHiddenInGame(true);
 	}
+	
+	
 }
 
 void AStrategyEntityCharacter::NativeRTSInitialize(int32 InFactionID, AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform)
@@ -199,6 +202,12 @@ void AStrategyEntityCharacter::NativeRTSInitialize(int32 InFactionID, AMainGameP
 		// Просыпаемся! Юнит снова на радарах сетки, таймеры взведены
 		GridTrackingComponent->InitializeGridTracking(); 
 	}
+	
+	URTSMinimapSubsystem* Minimap = GetWorld()->GetSubsystem<URTSMinimapSubsystem>();
+	if (Minimap)
+	{
+		Minimap->RegisterEntity(this);
+	}
 }
 
 void AStrategyEntityCharacter::NativeRTSDeinitialize()
@@ -208,6 +217,12 @@ void AStrategyEntityCharacter::NativeRTSDeinitialize()
 	{
 		// Просыпаемся! Юнит снова на радарах сетки, таймеры взведены
 		GridTrackingComponent->DeinitializeGridTracking();
+	}
+	
+	URTSMinimapSubsystem* Minimap = GetWorld()->GetSubsystem<URTSMinimapSubsystem>();
+	if (Minimap)
+	{
+		Minimap->UnregisterEntity(this);
 	}
 }
 
