@@ -68,4 +68,6 @@ public:
 	virtual void Server_SetStructureNetID_Implementation(int32 NewID) override {if (HasAuthority()) TowerId =  NewID;};
 	
 	virtual void GeinDamage(float Damage, int32 InstigatorTeamID) override;
+	
+	bool IsTowerLockedNoConnection(int32 MyFactionId);
 };

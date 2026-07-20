@@ -67,7 +67,7 @@ protected:
 	class URTSPathVisualizerComponent* PathVisualizerComponent;
 	
 	UPROPERTY()
-	int32 CachedFactionID = 255;
+	int32 CachedFactionID = 254;
 	
 	
 public:

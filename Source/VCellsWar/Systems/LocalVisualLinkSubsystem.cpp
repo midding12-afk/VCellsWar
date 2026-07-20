@@ -78,6 +78,7 @@ void ULocalVisualLinkSubsystem::UpdateTowerIDMap()
 	TArray<AActor*> FoundActors2;
 	FoundActors1.Empty();
 	FoundActors2.Empty();
+	TowerIDMap.Empty();
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATowerBase::StaticClass(), FoundActors1);
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortalBase::StaticClass(), FoundActors2);
 
@@ -96,6 +97,67 @@ void ULocalVisualLinkSubsystem::UpdateTowerIDMap()
 		TowerIDMap.Add(TowerNetworkID, Actor);
 	}
 	
+}
+
+bool ULocalVisualLinkSubsystem::IsTowerInPlayerNetlink(AActor* Tower, const AMainGamePlayerState* PS) const
+{
+	int32 TowerID = IStructureNetIDInterface::Execute_GetStructureNetID(Tower);
+	
+	if (TowerIDMap.IsEmpty()) 
+		return false;
+	
+	AMainGameGameState* MyGameState = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+	if (!MyGameState) return false;
+	
+	TArray<FDeloneGraphEdge> DeloneEdgesTowerID = MyGameState->CachedDeloneEdgesTowerID;
+	
+	TArray<int32> ListOfPlayerTowers;
+	int32 currentIndex = 0;
+	
+	auto UpdateNeighboursWithPS = [&](const int32 StructureNetID)
+	{		
+		for (FDeloneGraphEdge Edge : DeloneEdgesTowerID)
+		{
+			if (Edge.Start==StructureNetID && IStrategyEntityInterface::Execute_GetEntityOwnerState(TowerIDMap[Edge.End]) == PS && !ListOfPlayerTowers.Contains(Edge.End))
+				ListOfPlayerTowers.Add(Edge.End);
+		
+			if (Edge.End==StructureNetID && IStrategyEntityInterface::Execute_GetEntityOwnerState(TowerIDMap[Edge.Start]) == PS && !ListOfPlayerTowers.Contains(Edge.Start))
+				ListOfPlayerTowers.Add(Edge.Start);
+		}
+		
+	};
+	
+	UpdateNeighboursWithPS(TowerID);
+	
+	
+	while (currentIndex < ListOfPlayerTowers.Num())
+	{		
+		if (TowerIDMap[ListOfPlayerTowers[currentIndex]]->IsA(APortalBase::StaticClass()))
+			return true;
+		
+		UpdateNeighboursWithPS(ListOfPlayerTowers[currentIndex]);
+		
+		currentIndex++;
+	}
+	
+	return false;
+}
+
+TSet<int32> ULocalVisualLinkSubsystem::GetAllNeighbours(const int32 StructureNetID, const TArray<FDeloneGraphEdge>& DeloneEdgesTowerID) const
+{
+	TSet<int32> List;
+	if (TowerIDMap.IsEmpty()) return List;
+	
+	for (FDeloneGraphEdge Edge : DeloneEdgesTowerID)
+	{
+		if (Edge.Start==StructureNetID)
+			List.Add(Edge.End);
+		
+		if (Edge.End==StructureNetID)
+			List.Add(Edge.Start);
+	}
+	
+	return List;
 }
 
 void ULocalVisualLinkSubsystem::HandleDeloneEdgesChanged(TArray<FDeloneGraphEdge> DeloneEdgesTowerID)

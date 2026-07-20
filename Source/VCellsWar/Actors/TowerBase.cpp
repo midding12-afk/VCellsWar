@@ -7,6 +7,7 @@
 #include "Net/UnrealNetwork.h"
 #include "VCellsWar/GameMods/MainGameGameModeBase.h"
 #include "VCellsWar/GameMods/MainGameGameState.h"
+#include "VCellsWar/Systems/LocalVisualLinkSubsystem.h"
 
 ATowerBase::ATowerBase()
 {
@@ -174,15 +175,16 @@ void ATowerBase::GeinDamage(float Damage, int32 InstigatorTeamID)
 					
 					AMainGamePlayerState* PS = GS->GetPlayerState(InstigatorTeamID);
 					if (!PS) return;
+					
+					ULocalVisualLinkSubsystem* VLSubsystem = GetWorld()->GetSubsystem<ULocalVisualLinkSubsystem>();
+					if (!VLSubsystem || !VLSubsystem->IsTowerInPlayerNetlink(this, PS)) return;
+					
 					SetEntityOwner(PS);
 					APlayerController* PC = PS->GetPlayerController();
 					SetOwner(PC);
 					OnRep_HealthBarTeamIDColor();
 
-					if (GS)
-					{
-						GS->Multicast_InvocLinksUpdate();
-					}	
+					GS->Multicast_InvocLinksUpdate();
 				}					
 			}
 		}
@@ -202,4 +204,24 @@ void ATowerBase::GeinDamage(float Damage, int32 InstigatorTeamID)
 	
 	HealthBarProgress = FMath::Clamp(FMath::RoundToInt(CurrentOwningProgressInHealthPoint/MaxHealth * 255.f),0,255);
 	OnRep_HealthBarProgress();	
+}
+
+bool ATowerBase::IsTowerLockedNoConnection(int32 MyFactionId)
+{
+	if (Execute_GetEntityFactionID(this)!=254) return false;
+	
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+	if (!GS) return true;
+	AMainGamePlayerState* PS = GS->GetPlayerState(MyFactionId);
+	if (!PS) return true;
+	
+	
+	float MaxHealth = MaxHealthWithoutOwner; //TODO + from gas or upgrades
+	
+	if (CurrentOwningProgressInHealthPoint<MaxHealth) return false;
+					
+	ULocalVisualLinkSubsystem* VLSubsystem = GetWorld()->GetSubsystem<ULocalVisualLinkSubsystem>();
+	if (!VLSubsystem || !VLSubsystem->IsTowerInPlayerNetlink(this, PS)) return true;
+	
+	return false;
 }

@@ -2,6 +2,7 @@
 #include "StrategyGridSubsystem.h"
 #include "NavigationSystem.h"
 #include "VCellsWar/Actors/StrategyEntityCharacter.h"
+#include "VCellsWar/Actors/TowerBase.h"
 #include "VCellsWar/Actors/Interface/StrategyEntityInterface.h" 
 
 int32 UStrategyGridSubsystem::GetFactionIdFromActor(AActor* Actor) const
@@ -161,7 +162,7 @@ AActor* UStrategyGridSubsystem::FindRandomEnemyEntityInRadius(AActor* ScanningEn
 	if (TotalEnemyCount == 0) return nullptr;
 
 	// ЭТАП 2: ДВУХСТУПЕНЧАТЫЙ ПРЫЖОК К СЛУЧАЙНОЙ ЦЕЛИ ЗА ИСТИННОЕ O(1)
-	int32 RandomGlobalIndex = FMath::RandRange(0, TotalEnemyCount - 1);
+	/*int32 RandomGlobalIndex = FMath::RandRange(0, TotalEnemyCount - 1);
 
 	for (const FStrategyGridSector* TargetSector : ValidEnemySectors)
 	{
@@ -184,6 +185,76 @@ AActor* UStrategyGridSubsystem::FindRandomEnemyEntityInRadius(AActor* ScanningEn
 				}
 			}
 			return RandomEnemy;
+		}
+
+		RandomGlobalIndex -= SectorCount;
+	}
+
+	return nullptr;*/
+	
+	int32 RandomGlobalIndex = FMath::RandRange(0, TotalEnemyCount - 1);
+
+	for (const FStrategyGridSector* TargetSector : ValidEnemySectors)
+	{
+		int32 SectorCount = TargetSector->FlatActorPointers.Num();
+
+		if (RandomGlobalIndex < SectorCount)
+		{
+			// МГНОВЕННЫЙ ВЫСТРЕЛ ПО ПРЯМОМУ ИНДЕКСУ:
+			AActor* RandomEnemy = TargetSector->FlatActorPointers[RandomGlobalIndex];
+
+			if (IsValid(RandomEnemy))
+			{
+				// Проверяем интерфейс блокировки башни
+				ATowerBase* EnemyInterface = Cast<ATowerBase>(RandomEnemy);
+				bool bIsInvalidTower = false;
+				
+				if (EnemyInterface)
+				{
+					bIsInvalidTower = EnemyInterface->IsTowerLockedNoConnection(MyFactionId);
+				}
+
+				// Если башня легитимна — проверяем честный круглый радиус и стреляем!
+				if (!bIsInvalidTower)
+				{
+					if (FVector::DistSquared(MyLocation, RandomEnemy->GetActorLocation()) <= (Radius * Radius))
+					{
+						return RandomEnemy;
+					}
+				}
+			}
+
+			// =========================================================================
+			// Если случайная башня фракции 254 заблокирована (или враг вне радиуса кадра),
+			// мы делаем ОДИН быстрый проход по ВСЕМ валидным вражеским пулам в радиусе!
+			// Это гарантированно найдет подбегающих солдат фракции 2 в этой же зоне.
+			// =========================================================================
+			for (const FStrategyGridSector* BackupSector : ValidEnemySectors)
+			{
+				for (AActor* BackupEnemy : BackupSector->FlatActorPointers)
+				{
+					if (IsValid(BackupEnemy) && BackupEnemy != RandomEnemy)
+					{
+						ATowerBase* BackupInterface = Cast<ATowerBase>(BackupEnemy);
+						
+						// Если этот бэкап-враг — тоже заблокированная башня, то молча скипаем её
+						if (BackupInterface && BackupInterface->IsTowerLockedNoConnection(MyFactionId))
+						{
+							continue;
+						}
+
+						// Проверяем дистанцию: если солдат фракции 2 стоит рядом — он становится целью!
+						if (FVector::DistSquared(MyLocation, BackupEnemy->GetActorLocation()) <= (Radius * Radius))
+						{
+							return BackupEnemy; // Нашли честную цель из пула ДРУГОЙ фракции! 
+						}
+					}
+				}
+			}
+
+			// Если во всех вражеских пулах этой зоны вообще никого легитимного нет — возвращаем nullptr.
+			// Никакого зацикливания, процессор свободен!
+			return nullptr; 
 		}
 
 		RandomGlobalIndex -= SectorCount;

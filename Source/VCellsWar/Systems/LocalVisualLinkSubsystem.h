@@ -52,6 +52,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable)
 	void UpdateTowerIDMap();
+	
+	bool IsTowerInPlayerNetlink(AActor* Tower, const AMainGamePlayerState* PS) const;
+	
+	TSet<int32> GetAllNeighbours(const int32 StructureNetID, const TArray<FDeloneGraphEdge>& DeloneEdgesTowerID) const;
 
 protected:
 	void TryInitGameStateBridge();
