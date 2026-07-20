@@ -226,6 +226,23 @@ void AMainGamePlayerController::TeleportLocalCameraTo(FVector2D CenterLocation)
 	Client_TeleportCamera(CenterLocation, -1);
 }
 
+
+
+void AMainGamePlayerController::Client_TeleportCamera_Implementation(FVector2D TargetLocation, float Z)
+{
+	APawn* MyCameraPawn = GetPawn();
+	if (MyCameraPawn)
+	{
+		// Клиент сам двигает свою нереплицируемую камеру в пространстве
+		FVector Location(TargetLocation.X, TargetLocation.Y, Z>=0 ? Z : MyCameraPawn->GetActorLocation().Z);
+		
+		MyCameraPawn->SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
+        
+		// Сбрасываем ротацию контроллера в ноль, чтобы выровнять камеру (наш прошлый фикс)
+		SetControlRotation(FRotator::ZeroRotator);
+	}
+}
+
 void AMainGamePlayerController::SetSelectedList(TArray<AActor*> NewSelectedUnits)
 {
 	for (AActor* Actor : MySelectedUnits)
@@ -247,21 +264,6 @@ void AMainGamePlayerController::SetSelectedList(TArray<AActor*> NewSelectedUnits
 		{
 			EntityInterface->SelectEntity(); 
 		}
-	}
-}
-
-void AMainGamePlayerController::Client_TeleportCamera_Implementation(FVector2D TargetLocation, float Z)
-{
-	APawn* MyCameraPawn = GetPawn();
-	if (MyCameraPawn)
-	{
-		// Клиент сам двигает свою нереплицируемую камеру в пространстве
-		FVector Location(TargetLocation.X, TargetLocation.Y, Z>=0 ? Z : MyCameraPawn->GetActorLocation().Z);
-		
-		MyCameraPawn->SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
-        
-		// Сбрасываем ротацию контроллера в ноль, чтобы выровнять камеру (наш прошлый фикс)
-		SetControlRotation(FRotator::ZeroRotator);
 	}
 }
 

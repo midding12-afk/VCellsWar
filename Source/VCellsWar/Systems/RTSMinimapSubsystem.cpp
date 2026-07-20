@@ -10,6 +10,8 @@
 #include "VCellsWar/GameMods/MainGameGameState.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h" 
 #include "Kismet/KismetRenderingLibrary.h"
+#include "VCellsWar/Actors/TowerBase.h"
+#include "VCellsWar/GameMods/MainGamePlayerController.h"
 
 
 void URTSMinimapSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -130,7 +132,7 @@ void URTSMinimapSubsystem::UpdateMinimapGPU()
 		int32 FactionID = Interface->Execute_GetEntityFactionID(Entity);
 		
 		// Нативно вычисляем тип: 1.0f - Башня (Pawn), 0.0f - Пехотинец (Character)
-		float TypeFlag = 0.f;//Entity->IsA(APawn::StaticClass()) ? 1.0f : 0.0f;
+		float TypeFlag = Entity->IsA(ATowerBase::StaticClass()) ? 1.0f : 0.0f;
 
 		// С++ Математика перевода координат мира в пиксельный холст
 		FVector RelativeCoords = Loc - CurrentWorldCenter;
@@ -211,4 +213,101 @@ void URTSMinimapSubsystem::SetupMinimapTexture(UTextureRenderTarget2D* InRenderT
 		UNiagaraFunctionLibrary::SetTextureObject(MinimapNiagaraComponent, TEXT("MinimapRenderTarget"), BaseTexture);
 		MinimapNiagaraComponent->Activate();
 	}*/
+}
+
+FMinimapCameraFrustum URTSMinimapSubsystem::GetCameraFrustumPoints()
+{
+	FMinimapCameraFrustum Frustum;
+	
+	// 1. Извлекаем GameState и размер карты
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+	if (!GS) return Frustum;
+	float CurrentWorldMapSize = GS->MapSize;
+
+	// 2. Извлекаем ЛОКАЛЬНОГО PlayerController игрока на этом клиенте
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC || !PC->IsLocalController()) return Frustum;
+
+	// 3. Получаем размеры экрана монитора
+	int32 ViewportSizeX, ViewportSizeY;
+	PC->GetViewportSize(ViewportSizeX, ViewportSizeY);
+
+	// Углы вьюпорта
+	TArray<FVector2D> ScreenCorners = {
+		FVector2D(0, 0),                           // Верхний левый
+		FVector2D(ViewportSizeX, 0),               // Upper-Right
+		FVector2D(0, ViewportSizeY),               // Lower-Left
+		FVector2D(ViewportSizeX, ViewportSizeY)    // Lower-Right
+	};
+
+	TArray<FVector2D> WorldPoints;
+	WorldPoints.Reserve(4);
+
+	for (const FVector2D& Corner : ScreenCorners)
+	{
+		FVector WorldLocation, WorldDirection;
+		
+		if (PC->DeprojectScreenPositionToWorld(Corner.X, Corner.Y, WorldLocation, WorldDirection))
+		{
+			// Находим точку пересечения луча с плоскостью земли (Z = 0)
+			if (!FMath::IsNearlyZero(WorldDirection.Z))
+			{
+				float t = -WorldLocation.Z / WorldDirection.Z;
+				FVector Intersection = WorldLocation + (WorldDirection * t);
+				WorldPoints.Add(FVector2D(Intersection.X, Intersection.Y));
+			}
+			else 
+			{
+				WorldPoints.Add(FVector2D(WorldLocation.X, WorldLocation.Y));
+			}
+		}
+	}
+
+	// Защита, если депроекция сбойнула
+	if (WorldPoints.Num() < 4) return Frustum;
+
+	// 4. Проецируем мировые координаты в 2D пиксели Slate-миникарты (Твоя формула!)
+	auto ProjectToMinimap = [CurrentWorldMapSize](const FVector2D& WorldPos) -> FVector2D
+	{
+		float ScreenX = (WorldPos.Y / CurrentWorldMapSize) * 256.0f;
+		float ScreenY = (1.f - WorldPos.X / CurrentWorldMapSize) * 256.0f;
+		return FVector2D(ScreenX, ScreenY);
+	};
+
+	Frustum.TopLeft     = ProjectToMinimap(WorldPoints[0]);
+	Frustum.TopRight    = ProjectToMinimap(WorldPoints[1]);
+	Frustum.BottomLeft  = ProjectToMinimap(WorldPoints[2]);
+	Frustum.BottomRight = ProjectToMinimap(WorldPoints[3]);
+
+	return Frustum;
+}
+
+void URTSMinimapSubsystem::ProcessMinimapClick(FVector2D LocalClickPosition)
+{
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+	if (!GS) return;
+	float CurrentWorldMapSize = GS->MapSize;
+
+	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetWorld()->GetFirstPlayerController());
+	if (!PC) return;
+
+	// =========================================================================
+	// 1. Находим чистый процент положения курсора на миникарте (от 0.0 до 1.0)
+	// 2. Помним рокировку: Экранный X — это мировой Y, а экранный Y — мировой X!
+	// =========================================================================
+	float PercentX = LocalClickPosition.X / 256.f; // Экранный X (вправо)
+	float PercentY = LocalClickPosition.Y / 256.f; // Экранный Y (вниз)
+
+	// В мире: 
+	// Мировой Y идет слева направо (совпадает с PercentX)
+	// Мировой X идет снизу вверх (инвертирован относительно PercentY: 1.0f - PercentY)
+	float WorldX = (1.0f - PercentY) * CurrentWorldMapSize;
+	float WorldY = PercentX * CurrentWorldMapSize;
+
+	// Безопасный Clamp, чтобы при клике на самый край рамки камера не вылетала за карту
+	WorldX = FMath::Clamp(WorldX, 0.0f, CurrentWorldMapSize);
+	WorldY = FMath::Clamp(WorldY, 0.0f, CurrentWorldMapSize);
+
+	// Отправляем чистые С++ координаты в твой готовый метод контроллера
+	PC->TeleportLocalCameraTo(FVector2D(WorldX, WorldY));
 }

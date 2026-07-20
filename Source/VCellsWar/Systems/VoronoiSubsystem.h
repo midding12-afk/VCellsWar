@@ -171,6 +171,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Voronoi")
     TArray<FVoronoiGraphEdge> GetVoronoiEdges();
+    
+    UFUNCTION(BlueprintPure, Category = "Voronoi")
+    TArray<FVoronoiGraphEdge> GetVoronoiEdgesForMapSize();
 
     UFUNCTION(BlueprintCallable, Category = "Voronoi")
     void ToggleActive(bool bActive);
@@ -185,6 +188,13 @@ public:
     void InitializeRenderTarget(int32 Resolution = 1024);
     
     TArray<FDeloneGraphEdge> GetCachedDeloneEdges() const { return CachedDeloneEdges; }
+    
+    UFUNCTION(BlueprintCallable, Category = "Voronoi")
+    TArray<FVector2D> GenerateMapBoundaryVertices();
+    
+    bool FindLineIntersection(const FVector2D& A, const FVector2D& B, const FVector2D& C, const FVector2D& D,
+                          FVector2D& OutIntersection);
+    bool IsPointInsideClosedPolygon(const FVector2D& P, const TArray<FVector2D>& ClosedPolygon);
 
 private:
     void ReconstructDiagram();
@@ -207,5 +217,7 @@ private:
 
     void DrawEdgesToRenderTarget();
     
+    
+
     FTimerHandle TimerHandle;
 };

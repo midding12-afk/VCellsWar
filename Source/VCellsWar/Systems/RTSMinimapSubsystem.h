@@ -6,6 +6,17 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "RTSMinimapSubsystem.generated.h"
 
+USTRUCT(BlueprintType)
+struct FMinimapCameraFrustum
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly) FVector2D TopLeft;
+	UPROPERTY(BlueprintReadOnly) FVector2D TopRight;
+	UPROPERTY(BlueprintReadOnly) FVector2D BottomLeft;
+	UPROPERTY(BlueprintReadOnly) FVector2D BottomRight;
+};
+
 // Опережающие объявления типов ядра для ускорения времени компиляции
 class UNiagaraComponent;
 class UNiagaraSystem;
@@ -57,6 +68,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "RTS|Minimap")
 	void SetupMinimapTexture(UTextureRenderTarget2D* InRenderTarget);
+	
+	UFUNCTION(BlueprintCallable, Category = "RTS|Minimap")
+	FMinimapCameraFrustum GetCameraFrustumPoints();
+	
+	UFUNCTION(BlueprintCallable, Category = "RTS|Minimap")
+	void ProcessMinimapClick(FVector2D LocalClickPosition);
 
 private:
 	// Наш внутренний С++ указатель, который будет очищаться через ClearRenderTarget2D

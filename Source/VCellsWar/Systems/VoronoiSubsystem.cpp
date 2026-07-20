@@ -5,6 +5,7 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "VCellsWar/GameMods/MainGameGameState.h"
 
 void UVoronoiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -39,6 +40,86 @@ TArray<FVoronoiGraphEdge> UVoronoiSubsystem::GetVoronoiEdges()
     
     return  CachedVoronoiEdges;
 }
+
+TArray<FVoronoiGraphEdge> UVoronoiSubsystem::GetVoronoiEdgesForMapSize()
+{
+	TArray<FVoronoiGraphEdge> Result;
+	Result.Empty();
+    
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+	if (!GS) return Result;
+	
+	float CurrentWorldMapSize = GS->MapSize; 
+        
+	if (CachedVoronoiEdges.Num() == 0)
+	{
+		ReconstructDiagram();
+	}
+    
+	// Получаем наш замкнутый многоугольник (первая точка == последней)
+	TArray<FVector2D> MapPoly = GenerateMapBoundaryVertices();
+	
+	Result.Reserve(CachedVoronoiEdges.Num() + MapPoly.Num());
+    
+	for (FVoronoiGraphEdge& line : CachedVoronoiEdges)
+	{
+		FVector2D ValidStart = line.Start;
+		FVector2D ValidEnd = line.End;
+
+		bool bStartInside = IsPointInsideClosedPolygon(ValidStart, MapPoly);
+		bool bEndInside = IsPointInsideClosedPolygon(ValidEnd, MapPoly);
+
+		// Если одна из точек вылетела за контур карты — клипаем её!
+		// Если обе точки внутри (bStartInside && bEndInside) — этот блок просто пропускается, 
+		// и ребро монолитно улетает на отрисовку без лишней математики.
+		if (!bStartInside || !bEndInside)
+		{
+			// Бежим по граням замкнутого массива (до Num() - 1)
+			for (int32 i = 0; i < MapPoly.Num() - 1; ++i)
+			{
+				FVector2D HitPoint;
+				if (FindLineIntersection(ValidStart, ValidEnd, MapPoly[i], MapPoly[i + 1], HitPoint))
+				{
+					// Сдвигаем именно ту точку, которая была снаружи
+					if (!bStartInside) ValidStart = HitPoint;
+					else ValidEnd = HitPoint;
+					break; // Пересечение найдено, грани контура больше не перебираем
+				}
+			}
+		}
+
+		// ПРОЕКЦИИ НА ЭКРАН миникарты
+		float StartScreenX = (ValidStart.Y / CurrentWorldMapSize) * 256.0f;
+		float StartScreenY = (1.f - ValidStart.X / CurrentWorldMapSize) * 256.0f;
+        
+		float EndScreenX = (ValidEnd.Y / CurrentWorldMapSize) * 256.0f;
+		float EndScreenY = (1.f - ValidEnd.X / CurrentWorldMapSize) * 256.0f;
+        
+		Result.Add(FVoronoiGraphEdge(FVector2D(StartScreenX, StartScreenY), FVector2D(EndScreenX, EndScreenY)));
+	}
+    
+    for (int32 i = 0; i < MapPoly.Num() - 1; ++i)
+    {
+        FVector2D PolyStart = MapPoly[i];
+        FVector2D PolyB   = MapPoly[i + 1];
+
+        // Прогоняем вершины красной рамки через ТВОЮ ИДЕАЛЬНУЮ математику экрана:
+        float PolyStartScreenX = (PolyStart.Y / CurrentWorldMapSize) * 256.0f;
+        float PolyStartScreenY = (1.f - PolyStart.X / CurrentWorldMapSize) * 256.0f;
+        
+        float PolyEndScreenX = (PolyB.Y / CurrentWorldMapSize) * 256.0f;
+        float PolyEndScreenY = (1.f - PolyB.X / CurrentWorldMapSize) * 256.0f;
+
+        // Упаковываем грань многоугольника в общий возвращаемый буфер ребер
+        Result.Add(FVoronoiGraphEdge(
+            FVector2D(PolyStartScreenX, PolyStartScreenY), 
+            FVector2D(PolyEndScreenX, PolyEndScreenY)
+        ));
+    }
+    
+	return Result;
+}
+
 
 void UVoronoiSubsystem::ToggleActive(bool bActive)
 {
@@ -557,4 +638,80 @@ void UVoronoiSubsystem::DrawEdgesToRenderTarget()
 
     // Завершаем отрисовку и сохраняем результат в текстуру
     UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(World, Context);
+}
+
+TArray<FVector2D> UVoronoiSubsystem::GenerateMapBoundaryVertices()
+{
+    TArray<FVector2D> Vertices;
+    
+    AMainGameGameState* GS = Cast<AMainGameGameState>(GetWorld()->GetGameState());
+	
+    if (!GS) return Vertices;
+    
+    float MapSize = GS->MapSize; 
+    int32 NumPlayers = GS->AllPlayerCount;    
+    
+    int32 NumVertices = NumPlayers * 2;
+    if (NumVertices < 4) NumVertices = 4;
+
+    float Radius = MapSize / 2.0f;
+    Vertices.Reserve(NumVertices+1);
+
+    // Шаг угла в радианах для каждой вершины
+    float AngleStep = (2.0f * PI) / NumVertices;
+	
+    // Корректируем начальный поворот (например, на PI/4 для ромба при 2 игроках)
+    float StartAngleOffset = -PI / 2.0f;//(NumPlayers == 2) ? (PI / 4.0f) : 0.0f;
+
+    for (int32 i = 0; i <= NumVertices; ++i)
+    {
+        float CurrentAngle = StartAngleOffset + (i * AngleStep);
+        float X = Radius * FMath::Cos(CurrentAngle) + MapSize/2.0f;
+        float Y = Radius * FMath::Sin(CurrentAngle) + MapSize/2.0f;
+        Vertices.Add(FVector2D(X, Y));
+    }
+
+    return Vertices;
+}
+
+/** Находит точку пересечения двух 2D отрезков (A-B и C-D) */
+bool UVoronoiSubsystem::FindLineIntersection(const FVector2D& A, const FVector2D& B, const FVector2D& C, const FVector2D& D, FVector2D& OutIntersection)
+{
+    float Denominator = (B.X - A.X) * (D.Y - C.Y) - (B.Y - A.Y) * (D.X - C.X);
+    if (FMath::IsNearlyZero(Denominator)) return false; // Линии параллельны
+
+    float Numerator1 = (A.Y - C.Y) * (D.X - C.X) - (A.X - C.X) * (D.Y - C.Y);
+    float Numerator2 = (A.Y - C.Y) * (B.X - A.X) - (A.X - C.X) * (B.Y - A.Y);
+
+    float U = Numerator1 / Denominator;
+    float V = Numerator2 / Denominator;
+
+    if (U >= 0.0f && U <= 1.0f && V >= 0.0f && V <= 1.0f)
+    {
+        OutIntersection.X = A.X + U * (B.X - A.X);
+        OutIntersection.Y = A.Y + U * (B.Y - A.Y);
+        return true;
+    }
+    return false;
+}
+
+/** Проверяет, находится ли точка внутри выпуклого многоугольника контура */
+bool UVoronoiSubsystem::IsPointInsideClosedPolygon(const FVector2D& P, const TArray<FVector2D>& ClosedPolygon)
+{
+    bool bInside = false;
+	
+    // Бежим строго до Num() - 1, так как грань образуется парами: [i] и [i + 1]
+    for (int32 i = 0; i < ClosedPolygon.Num() - 1; ++i)
+    {
+        const FVector2D& PolyA = ClosedPolygon[i];
+        const FVector2D& PolyB = ClosedPolygon[i + 1];
+
+        // Проверка Коэна-Сазерленда без модульной арифметики
+        if (((PolyA.Y > P.Y) != (PolyB.Y > P.Y)) &&
+            (P.X < (PolyB.X - PolyA.X) * (P.Y - PolyA.Y) / (PolyB.Y - PolyA.Y) + PolyA.X))
+        {
+            bInside = !bInside;
+        }
+    }
+    return bInside;
 }
