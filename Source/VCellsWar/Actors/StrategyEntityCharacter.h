@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Interface/StrategyEntityInterface.h"
+#include "VCellsWar/Systems/StrategyGridSubsystem.h"
 #include "StrategyEntityCharacter.generated.h"
 
 UCLASS()
@@ -31,19 +32,21 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override;
+	
+	virtual EStrategyEntityCategory GetEntityCategory_Implementation() const override {return EStrategyEntityCategory::Troop;};
 protected:
 	// Самый главный указатель. Реплицируется от сервера к клиентам.
 	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerState, BlueprintReadOnly, Category = "Strategy | Ownership")
 	AMainGamePlayerState* OwningPlayerState;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerColor, BlueprintReadOnly, Category = "Strategy | Ownership")
+	UPROPERTY(BlueprintReadOnly, Category = "Strategy | Ownership")
 	FLinearColor OwningPlayerColor = FLinearColor::Gray;
 
 	UFUNCTION()
 	void OnRep_OwningPlayerState();
 	
-	UFUNCTION()
-	void OnRep_OwningPlayerColor();
+	// UFUNCTION()
+	// void OnRep_OwningPlayerColor();
 	
 	UFUNCTION()
 	void OnRep_SpawnGeneration();

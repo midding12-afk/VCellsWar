@@ -148,14 +148,18 @@ void AStrategyEntityCharacter::InitCharacter()
 
 void AStrategyEntityCharacter::NativeRTSInitialize(int32 InFactionID, AMainGamePlayerState* InOwnerState, const FTransform& InSpawnTransform)
 {
+	// 4. ВСЕЛЯЕМ ИИ-МОЗГИ НА СЕРВЕРЕ
+	// ИИ вселится строго в правильной точке ворот портала в Chaos, без создания зомби-клонов 
+	if (HasAuthority() && GetController() == nullptr)
+	{
+		SpawnDefaultController();
+	}
+	
 	// 1. Запекаем базовые RTS параметры памяти
 	SetEntityOwner(InOwnerState);
 	SetGenericTeamId(FGenericTeamId(InFactionID));
 	
-	if (SpawnGeneration > 0)
-	{
-		SpawnGeneration++;
-	}
+	SpawnGeneration++;
 
 	// 2. ВЫЗЫВАЕМ НАШ ИСПРАВЛЕННЫЙ МЕТОД:
 	// Капсула мгновенно получает статус QueryAndPhysics и Custom-ответы каналов.
@@ -166,13 +170,7 @@ void AStrategyEntityCharacter::NativeRTSInitialize(int32 InFactionID, AMainGameP
 	// Так как коллизия уже включена строчкой выше, метод обновит матрицы Chaos со 100% точностью 
 	SetActorTransform(InSpawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
 
-	// 4. ВСЕЛЯЕМ ИИ-МОЗГИ НА СЕРВЕРЕ
-	// ИИ вселится строго в правильной точке ворот портала в Chaos, без создания зомби-клонов 
-	if (HasAuthority() && GetController() == nullptr)
-	{
-		SpawnDefaultController();
-	}
-
+	
 	// 5. НАСТРОЙКА КОМПОНЕНТА ДВИЖЕНИЯ ПОСЛЕ ВСЕЛЕНИЯ ИИ
 	if (UCharacterMovementComponent* CharMoveComp = GetCharacterMovement())
 	{
@@ -282,9 +280,9 @@ void AStrategyEntityCharacter::OnRep_OwningPlayerState()
 	
 }
 
-void AStrategyEntityCharacter::OnRep_OwningPlayerColor()
-{
-}
+// void AStrategyEntityCharacter::OnRep_OwningPlayerColor()
+// {
+// }
 
 void AStrategyEntityCharacter::Landed(const FHitResult& Hit)
 {

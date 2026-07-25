@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "VCellsWar/GameMods/MainGamePlayerState.h"
+#include "VCellsWar/Systems/StrategyGridSubsystem.h"
 #include "StrategyEntityInterface.generated.h"
 
 
@@ -100,6 +101,9 @@ public:
 			Execute_OnOwnerChanged(AsUObject, NewOwnerState);
 		}
 	}
+	
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "StrategyInterface")
+	EStrategyEntityCategory GetEntityCategory() const;
 	
 protected:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Strategy | Interface")

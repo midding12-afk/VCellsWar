@@ -20,7 +20,7 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-
+	virtual EStrategyEntityCategory GetEntityCategory_Implementation() const override {return EStrategyEntityCategory::StaticBuild;};
 protected:
 	virtual void BeginPlay() override;
 	

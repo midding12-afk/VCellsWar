@@ -37,7 +37,7 @@ public:
 	AActor* GetActorFromNetworkPoolDeferred(TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform);
 	
 	UFUNCTION(BlueprintCallable, Category = "RTS | Server Network Pool", meta = (DetermineOutputType = "ActorClass"))
-	AActor* GetActorFromNetworkPool(TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform);
+	AActor* GetActorFromNetworkPool(TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, const int32 InFactionID = 255, AMainGamePlayerState* InOwnerState = nullptr);
 	
 	/**
 	 * ШАГ 2: УНИВЕРСАЛЬНАЯ финализация спавна для любого актора.

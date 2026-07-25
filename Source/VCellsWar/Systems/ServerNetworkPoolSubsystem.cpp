@@ -1,6 +1,8 @@
 // Copyright (c) 2026, Dmitry Tur. All rights reserved.
 
 #include "ServerNetworkPoolSubsystem.h"
+
+#include "AIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/MovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -10,6 +12,7 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/StateTreeComponent.h"
 
 
 bool UServerNetworkPoolSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -20,7 +23,7 @@ bool UServerNetworkPoolSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 	//return World && (World->IsNetMode(NM_DedicatedServer) || World->IsNetMode(NM_ListenServer));
 }
 
-AActor* UServerNetworkPoolSubsystem::GetActorFromNetworkPool(TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform)
+AActor* UServerNetworkPoolSubsystem::GetActorFromNetworkPool(TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, const int32 InFactionID, AMainGamePlayerState* InOwnerState)
 {	
 	if (!ActorClass || !GetWorld()) return nullptr;
 
@@ -40,13 +43,13 @@ AActor* UServerNetworkPoolSubsystem::GetActorFromNetworkPool(TSubclassOf<AActor>
 			// Это полностью стирает анабиозный сон режима MOVE_None и отвязки от сцены!
 			RetrievedActor->ReregisterAllComponents();
 			
-			// 💥 ВЫЗОВ ИНИЦИАЛИЗАЦИИ ДЛЯ СТАРЫХ ЮНИТОВ:
+			// ВЫЗОВ ИНИЦИАЛИЗАЦИИ ДЛЯ СТАРЫХ ЮНИТОВ:
 			// Пул просто пинает интерфейс. Объект САМ внутри себя включит 
 			// нужные коллизии, сделает телепортацию физики и включит ИИ-мозги! 
 			if (IStrategyEntityInterface* EntityInterface = Cast<IStrategyEntityInterface>(RetrievedActor))
 			{
 				// Передаем дефолтные заглушки, так как портал перезапишет фракцию строчкой позже!
-				EntityInterface->NativeRTSInitialize(255, nullptr, SpawnTransform);
+				EntityInterface->NativeRTSInitialize(InFactionID, InOwnerState, SpawnTransform);
 			}
 			else
 			{
@@ -59,7 +62,21 @@ AActor* UServerNetworkPoolSubsystem::GetActorFromNetworkPool(TSubclassOf<AActor>
 			SetActorNetworkActive(RetrievedActor, true);
 			RetrievedActor->SetActorHiddenInGame(false);
 			RetrievedActor->SetReplicates(true);
-			RetrievedActor->SetReplicateMovement(true);			
+			RetrievedActor->SetReplicateMovement(true);	
+			
+			if (APawn* PawnActor = Cast<APawn>(RetrievedActor))
+			{
+				if (AController* AIC = PawnActor->GetController())
+				{
+					AIC->SetActorTickEnabled(true);
+
+					if (UStateTreeComponent* STComp = AIC->FindComponentByClass<UStateTreeComponent>())
+					{
+						// Запускаем State Tree с чистого листа в новой локации боя!
+						STComp->StartLogic();
+					}
+				}
+			}
 
 			return RetrievedActor;
 		}
@@ -81,12 +98,12 @@ AActor* UServerNetworkPoolSubsystem::GetActorFromNetworkPool(TSubclassOf<AActor>
 		// 2. ФИНАЛИЗАЦИЯ: Пусть движок соберет Блупринт, применит CDо и Construction Script
 		NewActor->FinishSpawning(SpawnTransform);
 
-		// 3. 💥 ВЫЗОВ ИНИЦИАЛИЗАЦИИ ДЛЯ НОВЫХ ЮНИТОВ:
+		// 3. ВЫЗОВ ИНИЦИАЛИЗАЦИИ ДЛЯ НОВЫХ ЮНИТОВ:
 		// Как только Блупринт финализирован, мы принудительно вызываем инициализацию.
 		// Метод настроит Custom-коллизию, запечет ServerMasterVersion и включит MOVE_Falling! 
 		if (IStrategyEntityInterface* EntityInterface = Cast<IStrategyEntityInterface>(NewActor))
 		{
-			EntityInterface->NativeRTSInitialize(255, nullptr, SpawnTransform);
+			EntityInterface->NativeRTSInitialize(InFactionID, InOwnerState, SpawnTransform);
 		}
 
 		// 4. Сетевые шлюзы AActor
@@ -173,6 +190,20 @@ void UServerNetworkPoolSubsystem::FinishSpawningNetworkUnit(AActor* ActorToFinis
 			CharMoveComp->SetMovementMode(MOVE_Falling);
 		}
 	}
+	
+	if (APawn* PawnActor = Cast<APawn>(ActorToFinish))
+	{
+		if (AController* AIC = PawnActor->GetController())
+		{
+			AIC->SetActorTickEnabled(true);
+
+			if (UStateTreeComponent* STComp = AIC->FindComponentByClass<UStateTreeComponent>())
+			{
+				// Запускаем State Tree с чистого листа в новой локации боя!
+				STComp->StartLogic();
+			}
+		}
+	}
 }
 
 void UServerNetworkPoolSubsystem::ReturnActorToNetworkPool(AActor* ActorToReturn)
@@ -185,11 +216,19 @@ void UServerNetworkPoolSubsystem::ReturnActorToNetworkPool(AActor* ActorToReturn
 	{
 		if (AController* AIC = PawnActor->GetController())
 		{
-			AIC->StopMovement(); // Останавливаем бег ИИ
-			
-			// Насильно заставляем ИИ-контроллер покинуть тело!
-			// Это на 100% заблокирует вызовы MakeShoot() из этого солдата!
-			AIC->UnPossess(); 
+			AIC->StopMovement(); // Насильно тормозим бег навигации
+		
+			// ВМЕСТО UNPOSSESS: УСЫПЛЕНИЕ ДЕРЕВА СОСТОЯНИЙ STATE TREE
+			// Ищем компонент State Tree внутри твоего AIController
+			if (UStateTreeComponent* STComp = AIC->FindComponentByClass<UStateTreeComponent>())
+			{
+				// Намертво выключаем и сбрасываем логику дерева состояний.
+				// После этого State Tree физически перестает тикать и вызывать любые таски/MakeShoot()!
+				STComp->StopLogic(TEXT("Pooling Sleep"));
+			}
+
+			// Выключаем тик самого актора контроллера
+			AIC->SetActorTickEnabled(false);
 		}
 	}
 

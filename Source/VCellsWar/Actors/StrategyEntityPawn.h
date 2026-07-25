@@ -22,6 +22,8 @@ public:
 	virtual void BeginPlay() override;
 	
 	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override;
+	
+	virtual EStrategyEntityCategory GetEntityCategory_Implementation() const override {return EStrategyEntityCategory::Tower;};
 
 public:	
 	// Called every frame

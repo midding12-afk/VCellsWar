@@ -7,15 +7,54 @@
 #include "Containers/Array.h"
 #include "StrategyGridSubsystem.generated.h"
 
+
+UENUM(BlueprintType)
+enum class EStrategyEntityCategory : uint8
+{
+	Troop         UMETA(DisplayName = "Мобильные войска (Пехота/Техника)"),
+	StaticBuild   UMETA(DisplayName = "Производственные/Экономические здания"),
+	Tower         UMETA(DisplayName = "Башни связи Делоне"),
+	DefenseBuild  UMETA(DisplayName = "Оборонительные обитаемые турели/укрипления"),
+	
+	
+	MAX           UMETA(Hidden) // Автоматически хранит общее количество категорий 
+};
+
 USTRUCT(BlueprintType)
 struct FStrategyGridSector
 {
 	GENERATED_BODY()
 
-	// Идеально плотный, непрерывный массив указателей на солдат в Куче ОЗУ.
-	// 2000 указателей солдат = всего 16 КБ памяти, которые монолитно сидят в L3-кэше процессора!
-	UPROPERTY()
-	TArray<AActor*> FlatActorPointers;
+	// Каждая категория сидит в своём собственном плотном векторе в L3-кэше процессора!
+	UPROPERTY() TArray<AActor*> Troops;
+	UPROPERTY() TArray<AActor*> StaticBuilds;
+	UPROPERTY() TArray<AActor*> Towers;
+	UPROPERTY() TArray<AActor*> DefenseBuilds;
+
+	/** Легковесный хелпер для быстрого получения нужного массива по Enum */
+	FORCEINLINE TArray<AActor*>& GetBucket(EStrategyEntityCategory Category)
+	{
+		switch (Category)
+		{
+			case EStrategyEntityCategory::Troop:        return Troops;
+			case EStrategyEntityCategory::StaticBuild: return StaticBuilds;
+			case EStrategyEntityCategory::Tower:       return Towers;
+			case EStrategyEntityCategory::DefenseBuild: return DefenseBuilds;
+		}
+		return Troops; // Дефолтный безопасный фоллбэк
+	}
+
+	FORCEINLINE const TArray<AActor*>& GetBucket(EStrategyEntityCategory Category) const
+	{
+		switch (Category)
+		{
+			case EStrategyEntityCategory::Troop:        return Troops;
+			case EStrategyEntityCategory::StaticBuild: return StaticBuilds;
+			case EStrategyEntityCategory::Tower:       return Towers;
+			case EStrategyEntityCategory::DefenseBuild: return DefenseBuilds;
+		}
+		return Troops;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -23,7 +62,7 @@ struct FPlayerGrid
 {
 	GENERATED_BODY()
 
-	// Наша плоская хэш-карта секторов для конкретного игрока FFA (Поиск за O(1))
+	// Наша плоская хэш-карта секторов для конкретного игрока FFA 
 	UPROPERTY(BlueprintReadOnly, Category = "StrategyGrid")
 	TMap<FIntPoint, FStrategyGridSector> Sectors;
 };
@@ -38,11 +77,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "StrategyGrid | Utility")
 	FIntPoint GetSectorCoords(FVector Location) const;
 
-	/** Регистрация при спавне/выходе из пула. Добавляет юнита в сектор за O(1) */
+	/** Регистрация при спавне/выходе из пула. Распределяет юнита в нужный бакет за O(1) */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "StrategyGrid | Operations")
 	void RegisterEntity(AActor* Entity);
 
-	/** Разрегистрация при смерти/уходе в пул. Стирает юнита за O(1) без сдвигов памяти */
+	/** Разрегистрация при смерти/уходе в пул. Стирает юнита из бакета за O(1) через Swap-and-Pop */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "StrategyGrid | Operations")
 	void UnregisterEntity(AActor* Entity);
 
@@ -50,13 +89,25 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "StrategyGrid | Operations")
 	void UpdateEntitySector(AActor* Entity);
 
-	/** 🚀 ИСТИННЫЙ FFA-СКАНЕР ЗА O(1): Находит абсолютно случайного врага среди всех фракций без лагов */
+	/** ИСТИННЫЙ FFA-СКАНЕР ЗА O(1): Ищет случайного врага ТОЛЬКО среди мобильных войск и турелей */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "StrategyGrid | Operations")
 	AActor* FindRandomEnemyEntityInRadius(AActor* ScanningEntity, float Radius);
+
+	/**  Ищет случайного врага ТОЛЬКО конкретного типа. 
+	 *  Если тип не указан (nullptr), собирает абсолютно любые вражеские объекты в радиусе кадра! 
+	 */
+	AActor* FindRandomEnemyEntityInRadiusByType(AActor* ScanningEntity, float Radius, const EStrategyEntityCategory* SpecificCategory = nullptr);
+
+	/** ФИЛЬТР ДЛЯ ТАКТИЧЕСКИХ ФЛАГОВ: Выдергивает за 0 наносекунд только мобильные отряды своей фракции */
+	UFUNCTION(BlueprintCallable, Category = "RTS|Grid", meta = (AutoCreateRefTerm = "Category", CPP_Default_Input = "EStrategyEntityCategory::Troop"))
+	TArray<AActor*> FindAllAlliesInRadius(FVector CenterLocation, float Radius, uint8 FactionID, EStrategyEntityCategory Category = EStrategyEntityCategory::Troop);	
 
 private:
 	// Вспомогательный метод получения ID фракции через интерфейс
 	int32 GetFactionIdFromActor(AActor* Actor) const;
+
+	/** Вспомогательный метод безопасного извлечения категории из интерфейса сущности */
+	EStrategyEntityCategory GetEntityCategoryFromActor(AActor* Actor) const;
 
 	// Наша основная трехмерная сетка фракций для FFA матчей до 8 игроков
 	UPROPERTY()

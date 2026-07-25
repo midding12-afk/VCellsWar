@@ -198,13 +198,13 @@ void APortalBase::ExecuteWaveSpawn()
 				Soldier->LaunchFromPortal(RotatedForwardVec);
 			}*/
 			
-			AActor* SpawnedActor = ServerPool->GetActorFromNetworkPool(SoldierClass, SpawnTransform);
+			AActor* SpawnedActor = ServerPool->GetActorFromNetworkPool(SoldierClass, SpawnTransform, FGenericTeamId(GetGenericTeamId()), PS);
 			AStrategyEntityCharacter* Soldier = Cast<AStrategyEntityCharacter>(SpawnedActor);
             
 			if (Soldier)
 			{
 				// Перезаписываем финальные параметры поверх инициализированной памяти
-				Soldier->SetEntityOwner(PS);      
+				//Soldier->SetEntityOwner(PS);      
 				Soldier->SetOwner(PC);
 				
 				if (AAIController* AIC = Cast<AAIController>(Soldier->GetController()))
@@ -213,7 +213,7 @@ void APortalBase::ExecuteWaveSpawn()
 				}
 	
 				// Насильно прописываем честную фракцию портала внутрь ИИ-контроллера и кэша тела! 
-				Soldier->SetGenericTeamId(FGenericTeamId(GetGenericTeamId()));
+				//Soldier->SetGenericTeamId(FGenericTeamId(GetGenericTeamId()));
     
 				// Выталкиваем полностью готового к баллистическому полету юнита из ворот!
 				Soldier->LaunchFromPortal(RotatedForwardVec);
