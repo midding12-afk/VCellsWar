@@ -2,7 +2,6 @@
 
 
 #include "TroopBase.h"
-
 #include "VCellsWar/Systems/ServerNetworkPoolSubsystem.h"
 
 void ATroopBase::GeinDamage(float Damage, int32 InstigatorTeamID)
@@ -16,5 +15,28 @@ void ATroopBase::GeinDamage(float Damage, int32 InstigatorTeamID)
 	if (ServerPool)
 	{
 		ServerPool->ReturnActorToNetworkPool(this);
+	}
+}
+
+void ATroopBase::SetNewRtsTargetFlag(class ATacticalFlagBase* NewFlag)
+{
+	if (GetAssignmentState() == ETroopAssignmentState::MarchingToFlag && CurrentTargetFlag)
+	{
+		CurrentTargetFlag->DegreaseIncomingTroopsCount();
+	}
+	
+	CurrentTargetFlag = NewFlag;
+	if (CurrentTargetFlag)
+	{
+		AssignmentState = ETroopAssignmentState::MarchingToFlag;
+		
+		CurrentTargetFlag->RegisterIncomingTroopForMovement(this);
+		
+		LastCnownFlagLocation=CurrentTargetFlag->GetActorLocation();
+	}
+	else
+	{
+		AssignmentState = ETroopAssignmentState::Idle;
+		ServerLocalIndex = -1;
 	}
 }

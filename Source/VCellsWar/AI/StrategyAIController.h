@@ -29,7 +29,7 @@ public:
 	
 	// Текущая точка назначения солдата на сервере
 	UPROPERTY(BlueprintReadOnly, Category = "RTS | Movement")
-	FVector MoveTargetLocation;
+	FVector MoveTargetLocation = FVector::Zero();
 	
 	UFUNCTION(BlueprintCallable, Category = "RTS | Attack")
 	void MakeShoot();
@@ -37,8 +37,9 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	float AccumulatedTime;
 
+	virtual void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result) override;
 protected:
 	virtual void BeginPlay() override;
 	
-	void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result) override;
+	
 };

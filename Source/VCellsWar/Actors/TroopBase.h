@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "StrategyEntityCharacter.h"
+#include "VCellsWar/Systems/FlagsManagerSubsystem.h"
 #include "TroopBase.generated.h"
 
 /**
@@ -16,4 +17,25 @@ class VCELLSWAR_API ATroopBase : public AStrategyEntityCharacter
 public:	
 
 	virtual void GeinDamage(float Damage, int32 InstigatorTeamID) override;
+	
+	class ATacticalFlagBase* GetCurrentTargetFlag() {return CurrentTargetFlag;};
+	void SetNewRtsTargetFlag(class ATacticalFlagBase* NewFlag);
+	
+	//void SetServerLocalIndex(int32 newID) {AttachedToFlagIndex = newID;};
+	
+	FORCEINLINE ETroopAssignmentState GetAssignmentState() const { return AssignmentState; }
+	FORCEINLINE void SetAssignmentState(ETroopAssignmentState NewState) { AssignmentState = NewState; }
+	
+	bool IsTargetFlagMoved() {return (CurrentTargetFlag && LastCnownFlagLocation!=CurrentTargetFlag->GetActorLocation());};
+	
+private:
+	ETroopAssignmentState AssignmentState = ETroopAssignmentState::Idle;
+	
+	UPROPERTY()
+	class ATacticalFlagBase* CurrentTargetFlag = nullptr;
+	int32 ServerLocalIndex = -1;
+	
+	UPROPERTY()
+	FVector LastCnownFlagLocation;
+	
 };

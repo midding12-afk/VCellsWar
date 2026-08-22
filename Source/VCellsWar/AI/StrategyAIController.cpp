@@ -5,11 +5,12 @@
 #include "Components/StateTreeComponent.h" // Для работы с компонентом дерева
 #include "StateTreeEvents.h"               // Для корректной рефлексии FStateTreeEvent
 #include "GameplayTagsManager.h"
-
+#include "Navigation/PathFollowingComponent.h"
 #include "VCellsWar/RTSVisualSettings.h"
 #include "VCellsWar/Actors/BlasterBase.h"
 #include "VCellsWar/GameMods/MainGamePlayerState.h"
 #include "VCellsWar/Actors/StrategyEntityCharacter.h"
+#include "VCellsWar/Actors/TroopBase.h"
 #include "VCellsWar/Components/RTSPathVisualizerComponent.h"
 #include "VCellsWar/Components/StrategyGridComponent.h"
 #include "VCellsWar/GameMods/MainGameGameState.h"
@@ -116,4 +117,34 @@ void AStrategyAIController::OnMoveCompleted(FAIRequestID RequestID, const FPathF
 		//PathComp->ActivateTracking();
 		PathComp->DeactivateTracking();
 	}*/
+	
+	if (HasAuthority()) 
+		// Получаем самого солдата, которым управляет этот контроллер
+		if (ATroopBase* MyTroop = Cast<ATroopBase>(MyPawn))
+		{
+			// Проверяем: если движение завершилось, но солдат по логике ВСЁ ЕЩЁ марширует к флагу
+			if (MyTroop->GetAssignmentState() == ETroopAssignmentState::MarchingToFlag && Result.IsSuccess())
+			{
+				
+				ATacticalFlagBase* TargetFlag = MyTroop->GetCurrentTargetFlag();
+				
+				if (MyTroop->IsTargetFlagMoved())
+				{
+					if (TargetFlag && IsValid(TargetFlag))
+					{
+						// ПОВТОРНАЯ РЕГИСТРАЦИЯ: Солдат просится в новую команду движения этого флага,
+						// так как старый приказ выполнен, но до реальной базы он географически не дошёл!
+						TargetFlag->RegisterIncomingTroopForMovement(MyTroop);
+					}
+					else
+					{
+						MyTroop->SetNewRtsTargetFlag(nullptr);
+					}
+				}
+				else
+				{
+					TargetFlag->BindTroop(MyTroop);
+				}
+			}
+		}
 }

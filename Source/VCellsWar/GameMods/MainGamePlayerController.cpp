@@ -9,9 +9,13 @@
 #include "VCellsWar/MainGame/RTSCameraPawn.h"
 #include "EnhancedInputComponent.h"
 #include "Engine/LocalPlayer.h"
-#include "EnhancedInputSubsystems.h"
 #include "NavigationSystem.h"
+#include "VCellsWar/Actors/StrategyEntityCharacter.h"
 #include "VCellsWar/Actors/Interface/StrategyEntityInterface.h"
+#include "VCellsWar/Systems/FlagsManagerSubsystem.h"
+#include "VCellsWar/Systems/ServerNetworkPoolSubsystem.h"
+#include "VCellsWar/Systems/StrategyPlacementSubsystem.h"
+#include "VCellsWar/TacticalFlag/TacticalFlagBase.h"
 
 AMainGamePlayerController::AMainGamePlayerController()
 {
@@ -37,24 +41,6 @@ void AMainGamePlayerController::BeginPlay()
 		SetShowMouseCursor(true);
 	}
 	
-	// if (IsLocalController())
-	// {
-	// 	// В этой точке GetLocalPlayer() ГАРАНТИРОВАННО возвращает валидный указатель во всех режимах!
-	// 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
-	// 	{
-	// 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-	// 		{
-	// 			if (DefaultMappingContext)
-	// 			{
-	// 				// Накатываем контекст управления со 100% гарантией работы
-	// 				Subsystem->AddMappingContext(DefaultMappingContext, 0);
-	// 				UE_LOG(LogTemp, Log, TEXT("EnhancedInput: Контекст успешно активирован в PawnClientRestart!"));
-	// 			}
-	// 		}
-	// 	}
-	// }
-	
-	
 	
 	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::White, *FString::Printf(TEXT("BP ")));
 }
@@ -69,6 +55,12 @@ void AMainGamePlayerController::OnPossess(APawn* InPawn)
 	{
 		InitializeRTSInput();
 	}
+}
+
+void AMainGamePlayerController::Server_MoveFlag_Implementation(ATacticalFlagBase* Flag, FVector Location)
+{
+	Flag->SetActorLocation(Location);
+	Flag->OnRep_ReplicatedMovement();
 }
 
 void AMainGamePlayerController::OnRep_Pawn()
@@ -135,12 +127,23 @@ void AMainGamePlayerController::OnLeftClickStarted(const FInputActionValue& Valu
 {
 	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::White, *FString::Printf(TEXT("LMC From %d"), Cast<IGenericTeamAgentInterface>(PlayerState)->GetGenericTeamId().GetId()));
 	
+	if (UStrategyPlacementSubsystem* PlacementSubsystem = GetLocalPlayer()->GetSubsystem<UStrategyPlacementSubsystem>())
+	{
+		if (PlacementSubsystem->IsPlacingActive())
+		{
+			PlacementSubsystem->ConfirmPlacement(this); // Нажали ЛКМ при стройке — зафиксировать!
+			return;
+		}
+	}
+
+	
 	float MouseX, MouseY;
 	if (GetMousePosition(MouseX, MouseY))
 	{
 		StartSelectionPoint = FVector2D(MouseX, MouseY);
 		bIsSelecting = true;
 	}
+	
 }
 
 void AMainGamePlayerController::OnLeftClickCompleted(const FInputActionValue& Value)
@@ -151,6 +154,16 @@ void AMainGamePlayerController::OnLeftClickCompleted(const FInputActionValue& Va
 void AMainGamePlayerController::OnRightClickPressed(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::White, *FString::Printf(TEXT("RMC From %d"), Cast<IGenericTeamAgentInterface>(PlayerState)->GetGenericTeamId().GetId()));
+	
+	if (UStrategyPlacementSubsystem* PlacementSubsystem = GetLocalPlayer()->GetSubsystem<UStrategyPlacementSubsystem>())
+	{
+		if (PlacementSubsystem->IsPlacingActive())
+		{
+			PlacementSubsystem->CancelPlacement(); 
+			return;
+		}
+	}
+	
 	FHitResult HitResult;
 	if (GetHitResultUnderCursor(ECC_Visibility, true, HitResult))
 	{
@@ -161,39 +174,6 @@ void AMainGamePlayerController::OnRightClickPressed(const FInputActionValue& Val
 	}
 }
 
-/*void AMainGamePlayerController::OnLeftClickPressed()
-{
-	// Локально на клиенте запоминаем точку старта рамки
-	float MouseX, MouseY;
-	if (GetMousePosition(MouseX, MouseY))
-	{
-		StartSelectionPoint = FVector2D(MouseX, MouseY);
-		bIsSelecting = true;
-	}
-}
-
-void AMainGamePlayerController::OnLeftClickReleased()
-{
-	// Когда игрок отпустил мышку, рамка закрывается. 
-	// Логику захвата акторов мы перенесем в HUD, поэтому здесь просто опускаем флаг.
-	bIsSelecting = false;
-}
-
-
-void AMainGamePlayerController::OnRightClickPressed()
-{
-	if (MySelectedUnits.Num() == 0) return; // На клиенте проверка работает!
-
-	FHitResult HitResult;
-	if (GetHitResultUnderCursor(ECC_Visibility, true, HitResult))
-	{
-		if (HitResult.bBlockingHit)
-		{
-			// Передаем координаты КЛИКА и наш ЛОКАЛЬНЫЙ массив выделенных юнитов!
-			Server_MoveSelectedUnits(HitResult.Location, MySelectedUnits);
-		}
-	}
-}*/
 
 void AMainGamePlayerController::AcknowledgePossession(APawn* P)
 {
@@ -363,56 +343,283 @@ void AMainGamePlayerController::Server_MoveSelectedUnits_Implementation(FVector 
 	}
 }
 
-/*void AMainGamePlayerController::Server_MoveSelectedUnits_Implementation(FVector TargetLocation, const TArray<AActor*>& ActorsToMove)
-{
-	
-	// ТЕПЕРЬ ВСЁ ИДЕАЛЬНО: Сервер читает честный список ActorsToMove, прилетевший из сети!
-	if (ActorsToMove.Num() == 0) return;
-	
-	// 1. УЗНАЕМ КОМАНДУ ИГРОКА, КОТОРЫЙ ПРИСЛАЛ RPC:
-	// Кастуем PlayerState текущего контроллера к интерфейсу команд движка.
-	// (Ваш PlayerState должен реализовывать IGenericTeamAgentInterface, возвращая свой TeamIndex 0-7)
-	IGenericTeamAgentInterface* PlayerTeamAgent = Cast<IGenericTeamAgentInterface>(PlayerState);
-	if (!PlayerTeamAgent) return; // Если у игрока нет фракции, рубим приказ
 
-	FGenericTeamId PlayerTeamID = PlayerTeamAgent->GetGenericTeamId();
-	
-	for (AActor* SelectedUnit : ActorsToMove)
+void AMainGamePlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	// Достукиваемся до подсистемы локального игрока и отдаем ей рулевое управление мыши!
+	if (IsLocalController())
 	{
-		if (IsValid(SelectedUnit))
+		if (UStrategyPlacementSubsystem* PlacementSubsystem = GetLocalPlayer()->GetSubsystem<UStrategyPlacementSubsystem>())
 		{
-			APawn* UnitPawn = Cast<APawn>(SelectedUnit);
-						
-			if (UnitPawn)
-			{				
-				// 3. АНТИЧИТ КАСТ К ИНТЕРФЕЙСУ КОМАНД ДВИЖКА:
-				// Проверяем физическое тело юнита, прилетевшего от клиента
-				IGenericTeamAgentInterface* UnitTeamAgent = Cast<IGenericTeamAgentInterface>(SelectedUnit);
+			PlacementSubsystem->TickPlacement(DeltaTime, this);
+		}
+	}
+}
+
+
+void AMainGamePlayerController::Server_SpawnRtsFlag_Implementation(TSubclassOf<AActor> BuildingClass, FVector BuildSpawnLocation, int32 NewFlagNum, int32 SourceID, int32 TargetID)
+{
+	if (!HasAuthority()) return;
+	if (!BuildingClass) return;
+
+	AMainGamePlayerState* PS = Cast<AMainGamePlayerState>(PlayerState);
+	if (!PS) return;
+
+	uint8 PlayerFactionID = PS->GetGenericTeamId();
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = GetPawn();
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+	
+	UServerNetworkPoolSubsystem* ServerPool = GetWorld()->GetSubsystem<UServerNetworkPoolSubsystem>();
+	if (ServerPool)
+	{
+		FTransform SpawnTransform(FRotator::ZeroRotator, BuildSpawnLocation, FVector(1.0f, 1.0f, 1.0f));
+		
+		AActor* SpawnedActor = ServerPool->GetActorFromNetworkPoolDeferred(BuildingClass, SpawnTransform);//, PlayerFactionID, PS);
+		
+		if (!SpawnedActor) return;
+		
+		if (ATacticalFlagBase* Entity = Cast<ATacticalFlagBase>(SpawnedActor))
+		{     
+			Entity->FactionID = PlayerFactionID;	
 			
-				GEngine->AddOnScreenDebugMessage(uint64(this), 1.f, FColor::White, *FString::Printf(TEXT("From %d to %d"), PlayerTeamID.GetId(), UnitTeamAgent->GetGenericTeamId().GetId()));
-				
-				if (UnitTeamAgent)
+			Entity->SetOwner(this);
+			Entity->FlagID = NewFlagNum;
+			
+			if (!IsLocalController()) 
+			{
+				if (auto ClientFlag = Cast<ATacticalFlagBase>(SpawnedActor))
 				{
-					// Если ID фракции юнита НЕ совпадает с ID фракции приславшего игрока — 
-					// значит, читер попытался сжульничать и выделить чужую армию. Игнорируем этот объект!
-					if (UnitTeamAgent->GetGenericTeamId() != PlayerTeamID)
-					{
-						continue; 
-					}
+					ClientFlag->SetFlagVisualVisibility(false);
 				}
-				else
+			}
+			
+			if (UFlagsManagerSubsystem* FlagManager = GetWorld()->GetSubsystem<UFlagsManagerSubsystem>())
+			{
+				if (SourceID>0)
 				{
-					// Если объект вообще не поддерживает интерфейс команд, бежать он не может
-					continue;
+					if (ATacticalFlagBase* Flag = FlagManager->GetFlag(PlayerFactionID,SourceID))
+						Entity->AddSource(Flag);
 				}
-					
-				
-				AStrategyAIController* AIC = Cast<AStrategyAIController>(UnitPawn->GetController());
-				if (AIC)
+			
+				if (TargetID>0)
 				{
-					AIC->Command_MoveTo(TargetLocation);
+					if (ATacticalFlagBase* Flag = FlagManager->GetFlag(PlayerFactionID,TargetID))
+						Entity->AddDestination(Flag);
 				}
 			}
 		}
+		
+		ServerPool->FinishSpawningNetworkUnit(SpawnedActor, SpawnTransform);
 	}
-}*/
+}
+
+
+bool AMainGamePlayerController::Server_SpawnRtsFlag_Validate(TSubclassOf<AActor> BuildingClass, FVector BuildSpawnLocation, int32 NewFlagNum, int32 SourceID, int32 TargetID)
+{
+	return true;
+}
+
+void AMainGamePlayerController::Server_JastMakeLinkRtsFlag_Implementation(int32 SourceID, int32 TargetID)
+{
+	AMainGamePlayerState* PS = Cast<AMainGamePlayerState>(PlayerState);
+	if (!PS) return;
+
+	uint8 PlayerFactionID = PS->GetGenericTeamId();
+	
+	if (SourceID>0 && TargetID>0)
+		if (UFlagsManagerSubsystem* FlagManager = GetWorld()->GetSubsystem<UFlagsManagerSubsystem>())
+			if (ATacticalFlagBase* FlagS = FlagManager->GetFlag(PlayerFactionID,SourceID))
+				if (ATacticalFlagBase* FlagD = FlagManager->GetFlag(PlayerFactionID,TargetID))
+				{
+					FlagD->AddSource(FlagS);
+					FlagS->AddDestination(FlagD);
+				}
+}
+
+bool AMainGamePlayerController::Server_JastMakeLinkRtsFlag_Validate(int32 SourceID, int32 TargetID)
+{
+	return  true;
+}
+
+bool AMainGamePlayerController::Server_SpawnRtsBuilding_Validate(TSubclassOf<AActor> BuildingClass, FVector BuildSpawnLocation)
+{
+	// Железобетонный серверный античит-фильтр (проверка ресурсов/лимитов на спавн этого BuildingClass)
+	return true; 
+}
+
+void AMainGamePlayerController::Server_SpawnRtsBuilding_Implementation(TSubclassOf<AActor> BuildingClass, FVector BuildSpawnLocation)
+{
+	if (!HasAuthority() || !BuildingClass) return;
+
+	AMainGamePlayerState* PS = Cast<AMainGamePlayerState>(PlayerState);
+	if (!PS) return;
+
+	//uint8 PlayerFactionID = PS->GetGenericTeamId();
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = GetPawn();
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+	
+	UServerNetworkPoolSubsystem* ServerPool = GetWorld()->GetSubsystem<UServerNetworkPoolSubsystem>();
+	if (ServerPool)
+	{
+		FTransform SpawnTransform(FRotator::ZeroRotator, BuildSpawnLocation, FVector(1.0f, 1.0f, 1.0f));
+		
+		AActor* SpawnedActor = ServerPool->GetActorFromNetworkPoolDeferred(BuildingClass, SpawnTransform);//, PlayerFactionID, PS);
+		
+		if (!SpawnedActor) return;
+		  
+		if (AStrategyEntityCharacter* Entity = Cast<AStrategyEntityCharacter>(SpawnedActor))
+		{     
+			Entity->SetOwner(this);	
+		}
+		
+		ServerPool->FinishSpawningNetworkUnit(SpawnedActor, SpawnTransform);
+	}
+}
+
+void AMainGamePlayerController::HandleUniversalPlacementClick(AActor* HitActor, const FVector& ClickedLocation, const FPlacementBuildingData& BuildingData)
+{
+	if (bIsFlagMoveMode)
+	{
+		if (MovableFlag)
+		{
+			Server_MoveFlag(MovableFlag, ClickedLocation);
+		}
+		
+		bIsFlagMoveMode = false;
+		return;
+	}
+	// Достукиваемся до подсистемы, чтобы плавно управлять фантомами
+	UStrategyPlacementSubsystem* PlacementSubsystem = GetLocalPlayer()->GetSubsystem<UStrategyPlacementSubsystem>();
+	if (!PlacementSubsystem) return;
+
+	// РАЗВОДИМ ПАТОКИ ПО ТИПУ ДАННЫХ ИЗ НАСТРОЕК СТРОИТЕЛЬСТВА
+	if (!BuildingData.bIsChainBuilding || !BuildingData.RealServerBuildingClass->IsChildOf(ATacticalFlagBase::StaticClass()))
+	{
+		if (BuildingData.RealServerBuildingClass->IsChildOf(ATacticalFlagBase::StaticClass()))
+		{
+			if (HitActor && HitActor->IsA(ATacticalFlagBase::StaticClass()))
+			{
+				//todo select flag
+				return;
+			}
+			LocalFlagCounter++;
+			Server_SpawnRtsFlag(BuildingData.RealServerBuildingClass, ClickedLocation, LocalFlagCounter,0,0);
+		}
+		else
+		{
+			// ВЕТКА 1: Обычная постройка (Завод, Турель). Никаких бесконечных цепей!
+			Server_SpawnRtsBuilding(BuildingData.RealServerBuildingClass, ClickedLocation);
+		}		
+	}
+	else
+	{
+		// ВЕТКА 2: Наш продвинутый цепной флаг снабжения!
+		ATacticalFlagBase* ClickedFlag = Cast<ATacticalFlagBase>(HitActor);
+		
+		// Передаем управление методу цепей (он унаследует всю нашу прошлую логику переброса якорей)
+		HandleChainPlacement(ClickedFlag, ClickedLocation, BuildingData);
+		
+		// Мгновенно перезапускаем ведение фантома, чтобы цепь плелась без пауз!
+		//PlacementSubsystem->ConfirmPlacement(this);
+		PlacementSubsystem->StartPlacementMode(BuildingData);
+	}
+}
+
+
+void AMainGamePlayerController::StartFlagMovement(ATacticalFlagBase* NewFlag)
+{
+	
+}
+
+void AMainGamePlayerController::SetFlagMoveMode(ATacticalFlagBase* Flag)
+{
+	if (!Flag) return;
+	bIsFlagMoveMode=true;
+	MovableFlag = Flag;
+}
+
+void AMainGamePlayerController::HandleChainPlacement(ATacticalFlagBase* ClickedFlag, const FVector& Location, const FPlacementBuildingData& BuildingData)
+{
+	TSubclassOf<AActor> ClassToSpawn = BuildingData.RealServerBuildingClass;
+	if (!ClassToSpawn) return;
+
+	UStrategyPlacementSubsystem* PlacementSubsystem = GetLocalPlayer()->GetSubsystem<UStrategyPlacementSubsystem>();
+	if (!PlacementSubsystem) return;
+
+	
+	if (ClickedFlag)
+	{
+		if (LastActiveChainNode && LastActiveChainNode!=ClickedFlag)
+		{
+			int32 SourceID = (LinkDirection == EChainLinkDirection::Forward_SourceToTarget && LastActiveChainNode) ? LastActiveChainNode->FlagID : ClickedFlag->FlagID;
+			int32 TargetID = (LinkDirection == EChainLinkDirection::Backward_TargetToSource && LastActiveChainNode) ? LastActiveChainNode->FlagID : ClickedFlag->FlagID;
+			
+			Server_JastMakeLinkRtsFlag(SourceID, TargetID);
+		}
+		
+		
+		// Клик 1 по готовому флагу: он сразу становится легитимным якорем
+		LastActiveChainNode = ClickedFlag;
+	}
+	else
+	{
+		int32 SourceID = (LinkDirection == EChainLinkDirection::Forward_SourceToTarget && LastActiveChainNode) ? LastActiveChainNode->FlagID : 0;
+		int32 TargetID = (LinkDirection == EChainLinkDirection::Backward_TargetToSource && LastActiveChainNode) ? LastActiveChainNode->FlagID : 0;
+		
+		// Клик 1 по пустой земле
+		LocalFlagCounter++;
+		//LastActiveChainNode = nullptr; // Настоящего актора пока нет, он летит из сети
+		
+		
+		// Спавним времянки строго на клиенте внутри текущего мира локального игрока!
+		if (UWorld* World = GetWorld())
+		{
+			FTransform SpawnTransform(FRotator::ZeroRotator, Location, FVector(1.0f, 1.0f, 1.0f));
+			ATacticalFlagBase* CurrentLocalTempActor = World->SpawnActorDeferred<ATacticalFlagBase>(BuildingData.RealServerBuildingClass, SpawnTransform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+			
+			if (CurrentLocalTempActor)
+			{
+				AMainGamePlayerState* PS = Cast<AMainGamePlayerState>(PlayerState);
+				if (!PS) return;
+
+				uint8 PlayerFactionID = PS->GetGenericTeamId();
+				CurrentLocalTempActor->FactionID = PlayerFactionID;	
+			
+				CurrentLocalTempActor->SetOwner(this);
+				CurrentLocalTempActor->FlagID = LocalFlagCounter;
+				CurrentLocalTempActor->bIsLocalTempVersion = true;
+				
+				CurrentLocalTempActor->FinishSpawning(FTransform::Identity, true);
+				LastActiveChainNode = CurrentLocalTempActor;
+			}
+		}
+		
+				
+		// Просим сервер заспавнить флаг и привязать к нему наш токен!
+		Server_SpawnRtsFlag(ClassToSpawn, Location, LocalFlagCounter, SourceID, TargetID);
+	}
+
+}
+
+void AMainGamePlayerController::UpdateLastActiveChainNode(ATacticalFlagBase* NewFlag)
+{
+	LastActiveChainNode = NewFlag;
+}
+
+void AMainGamePlayerController::ReplaceTempLastActiveChainNode(ATacticalFlagBase* NewFlag)
+{
+	if (LastActiveChainNode && NewFlag && LastActiveChainNode->FlagID == NewFlag->FlagID)
+	{
+		LastActiveChainNode = NewFlag;
+	}
+}

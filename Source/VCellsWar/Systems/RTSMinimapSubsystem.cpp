@@ -186,7 +186,7 @@ void URTSMinimapSubsystem::UpdateMinimapGPU()
 		// 1. Отправляем сам массив координат солдат на GPU (наш прошлый рабочий метод):
 		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector4(MinimapNiagaraComponent, TEXT("EntityDataArray"), GPUEntityDataBuffer);
 
-		// 2. 🚀 СВЯЩЕННЫЙ С++ ФИКС: Передаем точное количество живых солдат для ElementCount X!
+		// 2. СВЯЩЕННЫЙ С++ ФИКС: Передаем точное количество живых солдат для ElementCount X!
 		// Метод SetNiagaraVariableInt встроен прямо в класс компонента. 
 		// Имя "UnitsCount" должно символ в символ (с учетом регистра) совпадать с левой панелью!
 		MinimapNiagaraComponent->SetNiagaraVariableInt(TEXT("UnitsCount"), GPUEntityDataBuffer.Num());
@@ -197,7 +197,7 @@ void URTSMinimapSubsystem::SetupMinimapTexture(UTextureRenderTarget2D* InRenderT
 {
 	if (!IsValid(InRenderTarget) || !MinimapNiagaraAsset) return;
 
-	// 1. 🦾 Намертво запоминаем адрес готового ассета, переданного из виджета!
+	// 1. Намертво запоминаем адрес готового ассета, переданного из виджета!
 	MyDynamicMinimapRT = InRenderTarget;
 	UKismetRenderingLibrary::ClearRenderTarget2D(GetWorld(), MyDynamicMinimapRT, MyDynamicMinimapRT->ClearColor);
 

@@ -183,18 +183,7 @@ void AStrategyEntityPawn::SetGenericTeamId(const FGenericTeamId& NewTeamID)
 
 void AStrategyEntityPawn::OnRep_OwningPlayerState()
 {
-	if (UObject* AsUObject = Cast<UObject>(this))
-	{
-		Execute_OnOwnerChanged(AsUObject, OwningPlayerState);
-	}
-}
-
-void AStrategyEntityPawn::OnRep_OwningPlayerColor()
-{
-	// if (UObject* AsUObject = Cast<UObject>(this))
-	// {
-	// 	Execute_OnOwnerChanged(AsUObject, OwningPlayerState);
-	// }
+	Execute_OnOwnerChanged(this, OwningPlayerState);
 }
 
 

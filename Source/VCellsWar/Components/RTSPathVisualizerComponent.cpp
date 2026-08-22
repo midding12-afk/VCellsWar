@@ -7,6 +7,7 @@
 #include "NavigationPath.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Net/UnrealNetwork.h"
+#include "VCellsWar/RTSVisualSettings.h"
 #include "VCellsWar/Actors/DecalLineBase.h"
 #include "VCellsWar/Actors/DecalMoveTargetBase.h"
 #include "VCellsWar/Actors/Interface/StrategyEntityInterface.h"
@@ -115,6 +116,20 @@ void URTSPathVisualizerComponent::ManagePathUpdate()
 		Decal = Cast<ADecalLineBase>(PoolActor);
 		if (Decal)
 		{
+			const URTSVisualSettings* VisualSettings = GetDefault<URTSVisualSettings>();
+			if (VisualSettings)
+			{
+				// 2. Синхронно загружаем нужный материал из настроек 
+				UMaterialInterface* TargetMaterial = VisualSettings->MoveLineDecalMaterial.LoadSynchronous();
+
+				if (TargetMaterial && Decal)
+				{
+					// 3. Задаем настройки один раз при извлечении из пула
+					// Передаем: Материал, Толщину, Коэффициент длины (например, 2.f для башен), Высоту проекции
+					Decal->InitLineSettings(TargetMaterial, 3.0f, 1.f, 500.0f);
+				}
+			}
+			
 			ActivePathLine = Decal;
 		}
 	}

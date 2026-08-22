@@ -39,14 +39,12 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerState, BlueprintReadOnly, Category = "Strategy | Ownership")
 	AMainGamePlayerState* OwningPlayerState;
 	
-	UPROPERTY(BlueprintReadOnly, Category = "Strategy | Ownership")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Strategy | Ownership")
 	FLinearColor OwningPlayerColor = FLinearColor::Gray;
 
 	UFUNCTION()
 	void OnRep_OwningPlayerState();
 	
-	// UFUNCTION()
-	// void OnRep_OwningPlayerColor();
 	
 	UFUNCTION()
 	void OnRep_SpawnGeneration();

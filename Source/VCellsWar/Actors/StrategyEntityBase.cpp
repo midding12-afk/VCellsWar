@@ -96,16 +96,9 @@ void AStrategyEntityBase::NativeRTSDeinitialize()
 
 void AStrategyEntityBase::OnRep_OwningPlayerState()
 {
-	if (OwningPlayerState)
-	{
-		
-	}
+	Execute_OnOwnerChanged(this, OwningPlayerState);
 }
 
-void AStrategyEntityBase::OnRep_OwningPlayerColor()
-{
-	
-}
 
 void AStrategyEntityBase::SetEntityOwner_Internal(AMainGamePlayerState* NewOwnerState)
 {

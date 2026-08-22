@@ -40,14 +40,12 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerState, BlueprintReadOnly, Category = "Strategy | Ownership")
 	AMainGamePlayerState* OwningPlayerState=nullptr;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_OwningPlayerColor, BlueprintReadOnly, Category = "Strategy | Ownership")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Strategy | Ownership")
 	FLinearColor OwningPlayerColor = FLinearColor::Gray*0.3f;
 
 	UFUNCTION()
 	void OnRep_OwningPlayerState();
 	
-	UFUNCTION()
-	void OnRep_OwningPlayerColor();
 	
 	// Физическая переменная цвета, которая реплицируется по сети
 	// UPROPERTY(ReplicatedUsing = OnRep_TeamColor, BlueprintReadOnly, Category = "Visual")

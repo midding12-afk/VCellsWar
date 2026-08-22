@@ -5,73 +5,83 @@
 
 #include "Components/DecalComponent.h"
 #include "Kismet/KismetMathLibrary.h"
-#include "VCellsWar/RTSVisualSettings.h"
+#include "VCellsWar/Systems/LocalGraphicsPoolSubsystem.h"
 
-// Sets default values
+
 ADecalLineBase::ADecalLineBase()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Полностью отключаем тик для производительности
 	PrimaryActorTick.bCanEverTick = false;
 	
+	// Настройки оптимизации для сетевой RTS
 	bReplicates = false;
 	bAlwaysRelevant = false;
 	bNetLoadOnClient = false;
 	SetReplicatingMovement(false);
+	SetActorEnableCollision(false);
 
-	// Создаем компонент декали выделения
+	// Создаем компонент декали
 	LineDecalComponent = CreateDefaultSubobject<UDecalComponent>(TEXT("LineDecalComponent"));
 	RootComponent = LineDecalComponent;
 
-	LineDecalComponent->DecalSize = FVector(1.0f, 3.0f, 100.0f);
-	
-	// 1. Включаем легковесный просчет габаритов. Огромные толпы маркеров назначения
-	// больше не будут перегружать процессор калькуляциями тяжелых Bound Boxes!
+	// Включаем легковесный просчет габаритов
 	LineDecalComponent->bComputeFastLocalBounds = true;
-	
-	SetActorEnableCollision(false);
-	
 	LineDecalComponent->FadeScreenSize = 0.01f;
-	
-	// 3. Сортировка (она у вас белая, но для надежности оставляем как есть)
 	LineDecalComponent->SetSortOrder(0);
 
-
-	const URTSVisualSettings* Settings = GetDefault<URTSVisualSettings>();
-	if (!Settings) return;
-
-	UMaterialInterface* DecalMaterial = Settings->MoveLineDecalMaterial.LoadSynchronous();
-	
-	// Если материал кольца задан — принудительно накатываем его на декаль
-	if (DecalMaterial && LineDecalComponent->GetDecalMaterial() == nullptr)
-	{
-		LineDecalComponent->SetDecalMaterial(DecalMaterial);
-	}
-
-	// Будим и показываем зеленое кольцо под ногами!
+	// Базовая видимость
 	LineDecalComponent->SetVisibility(true);
 	LineDecalComponent->SetHiddenInGame(false);
 }
 
-// Called when the game starts or when spawned
-void ADecalLineBase::BeginPlay()
+void ADecalLineBase::InitLineSettings(UMaterialInterface* NewMaterial, 	float InThickness, 	float InLengthMultiplier, 	float InProjectionHeight)
 {
-	Super::BeginPlay();
-	
+	// Сохраняем настройки во внутренние переменные
+	CachedThickness = InThickness;
+	CachedLengthMultiplier = InLengthMultiplier;
+	CachedProjectionHeight = InProjectionHeight;
+
+	// Устанавливаем материал один раз
+	if (NewMaterial && LineDecalComponent->GetDecalMaterial() != NewMaterial)
+	{
+		LineDecalComponent->SetDecalMaterial(NewMaterial);
+	}
 }
-
-// Called every frame
-void ADecalLineBase::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
-
 
 void ADecalLineBase::SetParametrs(const FVector& PointStart, const FVector& PointEnd)
 {
-	SetActorLocationAndRotation((PointStart+PointEnd)/2.f, UKismetMathLibrary::FindLookAtRotation(PointStart, PointEnd));
-	LineDecalComponent->DecalSize = FVector(FVector::Dist(PointStart, PointEnd)/2.f, 3.0f, 500.0f);
+	// Находим центр и разворот в сторону конечной точки
+	const FVector NewLocation = PointStart + (PointEnd - PointStart) * 0.5 * CachedLengthMultiplier;
+	const FRotator NewRotation = UKismetMathLibrary::FindLookAtRotation(PointStart, PointEnd);
+	SetActorLocationAndRotation(NewLocation, NewRotation);
+
+	// Считаем расстояние между точками
+	const float Distance = FVector::Dist(PointStart, PointEnd);
+
+	// Рассчитываем полудлину с учетом сохраненного коэффициента
+	const float HalfLength = (Distance * 0.5f) * CachedLengthMultiplier;
+
+	// Задаем итоговый размер, используя кэшированные параметры
+	LineDecalComponent->DecalSize = FVector(HalfLength, CachedThickness, CachedProjectionHeight);
+
+	// Принудительно обновляем рендер-стейт (необходимо, так как изменились размеры)
 	LineDecalComponent->MarkRenderStateDirty(); 
 }
 
+void ADecalLineBase::RemoveDecal()
+{
+	ULocalGraphicsPoolSubsystem* GraphicsPool = nullptr;
+	if (GetWorld())
+	{
+		GraphicsPool = GetWorld()->GetSubsystem<ULocalGraphicsPoolSubsystem>();
+	}
+	
+	if (GraphicsPool)
+	{
+		GraphicsPool->ReturnActorToPool(this);
+	}
+	else
+	{
+		Destroy();
+	}
+}

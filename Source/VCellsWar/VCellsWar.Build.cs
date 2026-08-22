@@ -8,7 +8,7 @@ public class VCellsWar : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "OnlineSubsystem", "OnlineSubsystemSteam", "OnlineSubsystemUtils", "SteamSockets", "NetCore", "NavigationSystem","StateTreeModule","GameplayStateTreeModule","StructUtils","GameplayTags","EnhancedInput","GameplayAbilities","GameplayTasks","Niagara"});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "OnlineSubsystem", "OnlineSubsystemSteam", "OnlineSubsystemUtils", "SteamSockets", "NetCore", "NavigationSystem","StateTreeModule","GameplayStateTreeModule","StructUtils","GameplayTags","EnhancedInput","GameplayAbilities","GameplayTasks","Niagara","UMG","SlateCore","GeometryFramework"});
 
 		//PrivateDependencyModuleNames.AddRange(new string[] { "EnhancedInput" });
 

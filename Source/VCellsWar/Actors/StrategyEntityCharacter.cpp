@@ -9,6 +9,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Components/DecalComponent.h"
 #include "VCellsWar/RTSVisualSettings.h"
+#include "VCellsWar/AI/StrategyAIController.h"
 #include "VCellsWar/Components/RTSPathVisualizerComponent.h"
 #include "VCellsWar/Components/StrategyGridComponent.h"
 #include "VCellsWar/Systems/RTSMinimapSubsystem.h"
@@ -277,12 +278,9 @@ void AStrategyEntityCharacter::LaunchFromPortal(FVector PortalForwardDirection)
 
 void AStrategyEntityCharacter::OnRep_OwningPlayerState()
 {
-	
+	Execute_OnOwnerChanged(this, OwningPlayerState);
 }
 
-// void AStrategyEntityCharacter::OnRep_OwningPlayerColor()
-// {
-// }
 
 void AStrategyEntityCharacter::Landed(const FHitResult& Hit)
 {
@@ -368,6 +366,15 @@ void AStrategyEntityCharacter::SelectEntity()
 		// Будим и показываем зеленое кольцо под ногами!
 		SelectionDecalComponent->SetVisibility(true);
 		SelectionDecalComponent->SetHiddenInGame(false);
+	}
+	
+	if (PathVisualizerComponent)
+	{
+		AStrategyAIController* AIC = Cast<AStrategyAIController>(GetController());
+		if (AIC)
+		{
+			PathVisualizerComponent->SetNewMoveDestination(AIC->MoveTargetLocation);
+		}
 	}
 }
 

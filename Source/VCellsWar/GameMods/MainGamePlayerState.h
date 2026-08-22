@@ -46,7 +46,7 @@ protected:
 	UFUNCTION()
 	void OnRep_TeamColor();
 	
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	FGenericTeamId TeamIndex;
 	
 	// Объявляем сам компонент. В RTS он живет строго на сервере и реплицируется клиентам
