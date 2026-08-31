@@ -102,6 +102,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RTS|Grid", meta = (AutoCreateRefTerm = "Category", CPP_Default_Input = "EStrategyEntityCategory::Troop"))
 	TArray<AActor*> FindAllAlliesInRadius(FVector CenterLocation, float Radius, uint8 FactionID, EStrategyEntityCategory Category = EStrategyEntityCategory::Troop);	
 
+	TArray<int32> GetHeatMapForPlayer(int32 PlayerID);
+	
+	float GetSectorSize() const { return SectorSize; }
 private:
 	// Вспомогательный метод получения ID фракции через интерфейс
 	int32 GetFactionIdFromActor(AActor* Actor) const;
@@ -120,4 +123,7 @@ private:
 	// Размер сектора на карте (3000 единиц = 30 метров)
 	UPROPERTY()
 	float SectorSize = 3000.f;
+	
+	UPROPERTY()
+	TArray<int32> NewHeatMap;
 };

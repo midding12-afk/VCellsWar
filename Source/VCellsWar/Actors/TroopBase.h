@@ -28,6 +28,11 @@ public:
 	
 	bool IsTargetFlagMoved() {return (CurrentTargetFlag && LastCnownFlagLocation!=CurrentTargetFlag->GetActorLocation());};
 	
+	UPROPERTY()
+	class UAISquad* MyAISquad;
+	
+	UPROPERTY()
+	int32 SquadLocalIndex = -1;
 private:
 	ETroopAssignmentState AssignmentState = ETroopAssignmentState::Idle;
 	
@@ -37,5 +42,6 @@ private:
 	
 	UPROPERTY()
 	FVector LastCnownFlagLocation;
+	
 	
 };

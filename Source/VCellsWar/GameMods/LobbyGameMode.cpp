@@ -99,8 +99,8 @@ void ALobbyGameMode::StartMatch(const FString& MapPath)
 			StatsSubsystem->NodesPositions = LobbyGS->GetNodePositions();
 			StatsSubsystem->MapSize = LobbyGS->GetMapSize();
 			
-			StatsSubsystem->AllPlayerCount = GameState->PlayerArray.Num() < 2 ? 2 : GameState->PlayerArray.Num();//to do + AI?
-			
+			StatsSubsystem->AllPlayerCount = (GameState->PlayerArray.Num() + LobbyGS->GetAIPortalsCount()) < 2 ? 2 : GameState->PlayerArray.Num();//to do + AI?
+			StatsSubsystem->AIPortalsCount = LobbyGS->GetAIPortalsCount();
 		}		
 		
 		int32 TeamId = 0;

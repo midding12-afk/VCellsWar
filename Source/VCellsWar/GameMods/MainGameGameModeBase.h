@@ -18,7 +18,10 @@ class VCELLSWAR_API AMainGameGameModeBase : public AGameModeBase
 	GENERATED_BODY()
 	
 protected:
-	void BeginPlay() override;
+	virtual void BeginPlay() override;
+	
+	UPROPERTY()
+	class AAIGeneralDirector* EnemyAiDirector;
 	
 	virtual void OnPostLogin(AController* NewPlayer) override;
 	
@@ -55,6 +58,8 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "RTS | Navigation")
 	void ResizeNavMeshBoundsVolume(ANavMeshBoundsVolume* VolumeToResize, FVector NewHalfExtents);
+	
+	TArray<ATowerBase*> GetTowers() const {return ActiveTower;};
 protected:	
 	virtual void GenericPlayerInitialization(AController* NewPlayer) override;
 
@@ -63,7 +68,7 @@ protected:
 	void EndPlay(EEndPlayReason::Type EndPlayReason);
 	
 
-	void SpawnNewPortal(AController* NewPlayer);
+	APortalBase* SpawnNewPortal(AController* NewPlayer);
 	
 	int32 PlayerSpawnedPortalsCounter = 0;
 private:
@@ -87,4 +92,6 @@ private:
 	UServerNetworkPoolSubsystem* ServerPool;
 	
 	// int32 TeamIndexCounter = 0;
+	
+	void Server_InitializeAiOpponent(int32 AiFactionID);
 };

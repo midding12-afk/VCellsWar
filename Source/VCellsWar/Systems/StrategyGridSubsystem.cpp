@@ -6,6 +6,8 @@
 #include "VCellsWar/Actors/Interface/StrategyEntityInterface.h" 
 #include "StrategyGridSubsystem.h"
 
+#include "MatchStatisticsSubsystem.h"
+
 int32 UStrategyGridSubsystem::GetFactionIdFromActor(AActor* Actor) const
 {
 	if (Actor && Actor->GetClass()->ImplementsInterface(UStrategyEntityInterface::StaticClass()))
@@ -456,5 +458,39 @@ TArray<AActor*> UStrategyGridSubsystem::FindAllAlliesInRadius(FVector CenterLoca
 	}
 
 	return FoundAllies;
+}
+
+TArray<int32> UStrategyGridSubsystem::GetHeatMapForPlayer(int32 PlayerID)
+{
+	//TArray<int32> NewHeatMap;
+	NewHeatMap.Reset();
+	
+	UMatchStatisticsSubsystem* Stats = GetWorld()->GetGameInstance()->GetSubsystem<UMatchStatisticsSubsystem>();
+	if (!Stats) return NewHeatMap;
+	
+	int32 MapSize = Stats->MapSize;
+	int32 MapLength = FMath::DivideAndRoundUp((float)MapSize, SectorSize);
+	NewHeatMap.Init(0, MapLength*MapLength); 
+	
+	for (auto& PlayerGridPair : GlobalPlayersGrids)
+	{
+		int32 FactionId = PlayerGridPair.Key;
+		TMap<FIntPoint, FStrategyGridSector> Sectors = PlayerGridPair.Value.Sectors;
+		
+		for (auto& SectorGrid : Sectors)
+		{
+			FIntPoint SectorCoord = SectorGrid.Key;
+			FStrategyGridSector TargetSector = SectorGrid.Value;
+			
+			if (TargetSector.GetBucket(EStrategyEntityCategory::Troop).Num() > 0)
+			{
+				int32 index = MapLength * SectorCoord.X + SectorCoord.Y;
+				NewHeatMap[index] += TargetSector.GetBucket(EStrategyEntityCategory::Troop).Num() * (PlayerID==FactionId ? 1 : -1);
+			}
+		}
+		
+	}
+	
+	return NewHeatMap;
 }
 

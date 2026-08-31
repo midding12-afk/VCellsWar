@@ -11,7 +11,7 @@
 
 ATowerBase::ATowerBase()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	
 
 	
@@ -129,6 +129,9 @@ void ATowerBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 void ATowerBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	
+	// if (HasAuthority())
+	// 	GEngine->AddOnScreenDebugMessage(1000+TowerId, 2.f, OwningPlayerColor.ToFColor(true), *FString::Printf(TEXT("Tower %d now in faction %d"), TowerId, GetGenericTeamId().GetId()));
 }
 
 void ATowerBase::GeinDamage(float Damage, int32 InstigatorTeamID)
@@ -156,6 +159,8 @@ void ATowerBase::GeinDamage(float Damage, int32 InstigatorTeamID)
 			{
 				GS->Multicast_InvocLinksUpdate();
 			}	
+			
+			OnTowerFactionChanged.Broadcast(this, GetGenericTeamId().GetId());
 		}			
 	}
 	else
@@ -185,6 +190,8 @@ void ATowerBase::GeinDamage(float Damage, int32 InstigatorTeamID)
 					OnRep_HealthBarTeamIDColor();
 
 					GS->Multicast_InvocLinksUpdate();
+					
+					OnTowerFactionChanged.Broadcast(this, GetGenericTeamId().GetId());
 				}					
 			}
 		}

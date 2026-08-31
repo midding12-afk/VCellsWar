@@ -14,7 +14,9 @@
 #include "GenericTeamAgentInterface.h"
 #include "NavigationSystem.h"
 #include "Components/BrushComponent.h"
+#include "Engine/OverlapResult.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
+#include "VCellsWar/AI/AIOpponent/AIGeneralDirector.h"
 
 void AMainGameGameModeBase::BeginPlay()
 {
@@ -31,10 +33,12 @@ void AMainGameGameModeBase::BeginPlay()
 		GS->MapSeed = Stats->MapSeed; 
 		GS->MapSize = Stats->MapSize;
 		
-		GS->AllPlayerCount = Stats->AllPlayerCount;
+		GS->SetAllPlayerCount(Stats->AllPlayerCount);
+		GS->SetAIPortalsCount(Stats->AIPortalsCount);
+		
 		
 		//GS->NodesPositions = Stats->NodesPositions;
-		GS->AllNodesCountOnInit = Stats->NodesPerPlayer * Stats->AllPlayerCount + 1;
+		GS->AllNodesCountOnInit = Stats->NodesPerPlayer * GS->GetSumAllPortalsCount() + 1;
 		
 
 		// 3. КРИТИЧЕСКИ ВАЖНО: Вручную вызываем OnRep для Сервера/Хоста!
@@ -70,6 +74,20 @@ void AMainGameGameModeBase::BeginPlay()
 		// Используем константу ETeamAttitude::Hostile, которую вы нашли на скриншоте кода движка
 		return ETeamAttitude::Hostile;
 	});
+	
+	APlayerController* HostController = GetWorld()->GetFirstPlayerController();
+	
+	if (HostController && HostController->IsLocalController())
+	{		
+		// Принудительно вызываем наш метод спавна портала для игрока-хоста
+		SpawnNewPortal(HostController);
+	}
+	
+	if (HasAuthority() && Stats->AIPortalsCount > 0)
+	{
+		// Инициализируем ИИ-врага
+		Server_InitializeAiOpponent(216);
+	}
 }
 
 
@@ -90,7 +108,9 @@ void AMainGameGameModeBase::GenericPlayerInitialization(AController* NewPlayer)
 				PS->Override_GiveFactionDefaultAbilities();
 			}
 		}
-		SpawnNewPortal(NewPlayer);		
+		
+		if (!NewPlayer->IsLocalController())
+			SpawnNewPortal(NewPlayer);		
 	}
 }
 
@@ -117,6 +137,61 @@ void AMainGameGameModeBase::Logout(AController* Exiting)
 	// чтобы заблокированные кнопки цветов снова стали активными.
 	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, TEXT("GM: Игрок покинул лобби. "));
 	
+}
+
+void AMainGameGameModeBase::Server_InitializeAiOpponent(int32 AiFactionID)
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	// ШАГ 1: Спавним Плеер-Контроллер для ИИ
+	// Используем ваш оригинальный контроллер, чтобы бот обладал теми же возможностями группового движения, что и человек
+	AMainGamePlayerController* AiController = World->SpawnActor<AMainGamePlayerController>(AMainGamePlayerController::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	
+	if (!AiController) return;
+
+	// ШАГ 2: Спавним Плеер-Стейт для ИИ
+	AMainGamePlayerState* AiPlayerState = World->SpawnActor<AMainGamePlayerState>(AMainGamePlayerState::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	
+	if (AiPlayerState)
+	{
+		// Жестко связываем контроллер ИИ и его стейт
+		AiController->PlayerState = AiPlayerState;
+		AiPlayerState->SetOwner(AiController);
+		
+		// Настраиваем фракцию/команду бота (предполагаем, что у вас в PlayerState есть для этого метод)
+		AiPlayerState->SetGenericTeamId(AiFactionID);
+		
+		// На старте закидываем ИИ немного виртуальных солдат в подпространственный буфер на развитие
+		// AiPlayerState->VirtualTroopsReserve = 100; 
+		
+		AiPlayerState->SetTeamColor(FLinearColor::White);
+	}
+
+	// ШАГ 3: Спавним Мозг Генерала (AInfo)
+	EnemyAiDirector = World->SpawnActor<AAIGeneralDirector>(AAIGeneralDirector::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	
+	if (EnemyAiDirector)
+	{
+		// КРИТИЧЕСКИ ВАЖНО ДЛЯ НАШЕЙ СЕТЕВОЙ ЦЕПОЧКИ:
+		// Назначаем Плеер-Контроллер бота ВЛАДЕЛЬЦЕМ (Owner) для актора Генерала.
+		// Теперь метод GetOwner() внутри генерала и его компонентов гарантированно вернет AiController!
+		EnemyAiDirector->SetOwner(AiController);
+		AiController->EnemyAiDirector = EnemyAiDirector;
+		
+		UMatchStatisticsSubsystem* Stats = GetGameInstance()->GetSubsystem<UMatchStatisticsSubsystem>();
+		if (Stats)
+		{
+			for (int i = 0;i<Stats->AIPortalsCount;i++)
+			{
+				APortalBase* AIPortal = SpawnNewPortal(AiController);
+				//AIPortal->EnemyAiDirector = EnemyAiDirector;
+			}
+		}
+	}
 }
 
 
@@ -163,10 +238,126 @@ AActor* AMainGameGameModeBase::SpawnActorInLocation(const TSubclassOf<AActor> Ac
 	return SpawnedActor;
 }
 
-void AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
+APortalBase* AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 {
 	UMatchStatisticsSubsystem* StatsSubsystem = GetGameInstance()->GetSubsystem<UMatchStatisticsSubsystem>();
-	if (!StatsSubsystem || !StrategyPortalClass) return;
+	if (!StatsSubsystem || !StrategyPortalClass) return nullptr;
+	
+	float CenterX = 0.0f;
+	float CenterY = 0.0f;
+	if (StatsSubsystem)
+	{
+		CenterX = StatsSubsystem->MapSize / 2.0f;
+		CenterY = StatsSubsystem->MapSize / 2.0f;
+	}
+	FVector2D CenterLocation2D(CenterX, CenterY);
+	
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GameState);
+	if (!GS) return nullptr;
+	
+	float anglePerPlayer = 360.f / GS->GetSumAllPortalsCount();
+	
+	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(NewPlayer);
+			
+	if (PC)
+	{
+		AMainGamePlayerState* PS = PC->GetPlayerState<AMainGamePlayerState>();
+		if (PS)
+		{
+			LinkedStructuresCounter++;
+				
+			FVector2D vector = FVector2D(0.9f * StatsSubsystem->MapSize / 2.f, 0.f);
+			vector = vector.GetRotated(PlayerSpawnedPortalsCounter * anglePerPlayer) + CenterLocation2D;
+				
+			FVector FinalSpawnLocation = GetPointOnMapInLocation(vector);
+
+			// =========================================================================
+			// АЛГОРИТМ СМЕЩЕНИЯ ОТ БЛИЖАЙШИХ БАШЕН (Push-Away Logic)
+			// =========================================================================
+			// Настраиваем минимальную дистанцию между Порталом и любой Башней (например, 600 единиц)
+			const float MinDistanceToTower = 1200.0f; 
+			const float MinDistanceToTowerSQ = FMath::Square(MinDistanceToTower);
+
+			// Делаем быстрый поиск башен в этой области. 
+			TArray<FOverlapResult> Overlaps;
+			FCollisionShape SphereShape = FCollisionShape::MakeSphere(MinDistanceToTower);
+			FCollisionQueryParams QueryParams;
+			QueryParams.bTraceComplex = false;
+
+			// Сканируем мир по динамическому каналу
+			if (GetWorld()->OverlapMultiByChannel(Overlaps, FinalSpawnLocation, FQuat::Identity, ECollisionChannel::ECC_WorldDynamic, SphereShape, QueryParams))
+			{
+				for (const FOverlapResult& Overlap : Overlaps)
+				{
+					// Если в радиусе оказалась башня
+					if (ATowerBase* NearbyTower = Cast<ATowerBase>(Overlap.GetActor()))
+					{
+						FVector TowerLoc = NearbyTower->GetActorLocation();
+						
+						// Проверяем расстояние по плоскости XY (игнорируя разницу высот ландшафта Z)
+						float DistToTowerSQ = FVector::DistSquaredXY(FinalSpawnLocation, TowerLoc);
+
+						if (DistToTowerSQ < MinDistanceToTowerSQ)
+						{
+							// Вычисляем вектор направления "ОТ башни К нашему порталу"
+							FVector PushDirection = (FinalSpawnLocation - TowerLoc);
+							PushDirection.Z = 0.0f; // Оставляем смещение только на плоскости
+							PushDirection.Normalize();
+
+							// Если точки совпали идеально (редкий случай), толкаем в сторону центра карты
+							if (PushDirection.IsNearlyZero())
+							{
+								PushDirection = FVector(CenterLocation2D.X, CenterLocation2D.Y, 0.0f) - FinalSpawnLocation;
+								PushDirection.Normalize();
+							}
+
+							// Смещаем координату спавна портала ровно на то расстояние, которого не хватает до лимита
+							float CurrentDist = FMath::Sqrt(DistToTowerSQ);
+							float PushDistance = MinDistanceToTower - CurrentDist;
+
+							// Применяем смещение
+							FinalSpawnLocation += PushDirection * (PushDistance + 50.0f); // +50 единиц запаса
+
+							// Корректируем высоту Z новой точки под рельеф вашей карты
+							FinalSpawnLocation = GetPointOnMapInLocation(FVector2D(FinalSpawnLocation.X, FinalSpawnLocation.Y));
+						}
+					}
+				}
+			}
+			// =========================================================================
+
+			FTransform SpawnTransform(FRotator::ZeroRotator, FinalSpawnLocation, FVector(1.0f, 1.0f, 1.0f));
+				
+			APortalBase* DeferredPortal = GetWorld()->SpawnActorDeferred<APortalBase>(
+				StrategyPortalClass, 	
+				SpawnTransform, 
+				nullptr, 
+				nullptr, 
+				ESpawnActorCollisionHandlingMethod::AlwaysSpawn
+			);
+				
+			if (DeferredPortal)
+			{
+				DeferredPortal->NativeRTSInitialize(PS->GetGenericTeamId(), PS, SpawnTransform);
+				//DeferredPortal->SetEntityOwner(PS);
+				DeferredPortal->Server_SetNextSpawnDelay(0.f);
+				//DeferredPortal->SetGenericTeamId(PS->GetGenericTeamId());
+				IStructureNetIDInterface::Execute_Server_SetStructureNetID(DeferredPortal, LinkedStructuresCounter);
+				UGameplayStatics::FinishSpawningActor(DeferredPortal, SpawnTransform);
+				PlayerSpawnedPortalsCounter++;
+				return DeferredPortal;
+			}
+		}
+	}
+	
+	return nullptr;
+}
+
+
+/*APortalBase* AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
+{
+	UMatchStatisticsSubsystem* StatsSubsystem = GetGameInstance()->GetSubsystem<UMatchStatisticsSubsystem>();
+	if (!StatsSubsystem || !StrategyPortalClass) return nullptr;
 	
 	float CenterX = 0.0f;
 	float CenterY = 0.0f;
@@ -178,7 +369,10 @@ void AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 	FVector2D CenterLocation2D(CenterX, CenterY);
 	
 	//int32 index = 0; //SplayerSpawnedPortalsCounter
-	float anglePerPlayer = 360.f/StatsSubsystem->AllPlayerCount;
+	AMainGameGameState* GS = Cast<AMainGameGameState>(GameState);
+	if (!GS) return nullptr;
+	
+	float anglePerPlayer = 360.f/GS->GetSumAllPortalsCount();
 	
 	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(NewPlayer);
 			
@@ -208,12 +402,14 @@ void AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 				//DeferredPortal->SetGenericTeamId(PS->GetGenericTeamId());
 				IStructureNetIDInterface::Execute_Server_SetStructureNetID(DeferredPortal, LinkedStructuresCounter);
 				UGameplayStatics::FinishSpawningActor(DeferredPortal, SpawnTransform);
+				PlayerSpawnedPortalsCounter++;
+				return DeferredPortal;
 			}
 		}
 	}
 	
-	PlayerSpawnedPortalsCounter++;
-}
+	return nullptr;
+}*/
 
 void AMainGameGameModeBase::SpawnNodesFromSubsystem()
 {
@@ -229,7 +425,10 @@ void AMainGameGameModeBase::SpawnNodesFromSubsystem()
 		
 		if (!NSB || !Stats) return;
 		
-		StatsSubsystem->NodesPositions = NSB->GenNodesList(Stats->MapSeed, Stats->MapSize, Stats->NodesPerPlayer, Stats->AllPlayerCount);
+		AMainGameGameState* GS = Cast<AMainGameGameState>(GameState);
+		if (!GS) return;
+		
+		StatsSubsystem->NodesPositions = NSB->GenNodesList(Stats->MapSeed, Stats->MapSize, Stats->NodesPerPlayer, GS->GetSumAllPortalsCount());
 	}
 
     // 2. Запускаем цикл по всем сохраненным позициям нод

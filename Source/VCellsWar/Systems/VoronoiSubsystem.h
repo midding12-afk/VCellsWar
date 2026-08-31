@@ -195,7 +195,8 @@ public:
     bool FindLineIntersection(const FVector2D& A, const FVector2D& B, const FVector2D& C, const FVector2D& D,
                           FVector2D& OutIntersection);
     bool IsPointInsideClosedPolygon(const FVector2D& P, const TArray<FVector2D>& ClosedPolygon);
-
+    
+    TArray<FVector2D> GetTovers() const { return ActiveNodes; }
 private:
     void ReconstructDiagram();
     bool ClampLineToMap(FVector2D Start, FVector2D End, FVector2D& OutStart, FVector2D& OutEnd);

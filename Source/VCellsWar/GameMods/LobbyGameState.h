@@ -38,6 +38,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Map Settings|UI")
 	int32 GetMapSize() const { return MapSize; }
+	
+	UFUNCTION(BlueprintCallable, Category = "Map Settings|UI")
+	void SetAIPortalsCount(int32 NewCount);
+	
+	UFUNCTION(BlueprintCallable, Category = "Map Settings|UI")
+	int32 GetAIPortalsCount() const {return AIPortalsCount;}
 
 protected:
 	// Реплицируемая переменная количества нод с RepNotify
@@ -49,6 +55,9 @@ protected:
 	
 	UPROPERTY(ReplicatedUsing = OnRep_MapSize, BlueprintReadOnly, Category = "Map Settings")
 	int32 MapSize = 0;
+	
+	UPROPERTY(ReplicatedUsing = OnRep_AIPortalsCount, BlueprintReadOnly, Category = "Map Settings")
+	int32 AIPortalsCount = 0;
  
 	UFUNCTION()
 	void OnRep_NodeCount();
@@ -58,6 +67,9 @@ protected:
 	
 	UFUNCTION()
 	void OnRep_MapSize();
+	
+	UFUNCTION()
+	void OnRep_AIPortalsCount();
 	
 	TArray<FVector2D> NodesPositions;
 
@@ -77,6 +89,11 @@ public:
 	
 	UPROPERTY(BlueprintAssignable, Category = "Map Settings|UI")
 	FOnMapSizeChanged OnMapSizeChangedBP;
+	
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAIPortalsCountChanged, int32, NewAIPortalsCount);
+	
+	UPROPERTY(BlueprintAssignable, Category = "Map Settings|UI")
+	FOnAIPortalsCountChanged OnAIPortalsCountChangedBP;
 	
 	UFUNCTION(BlueprintCallable, Category = "Voronoi")
 	void UpdateNodePositions(const TArray<FVector2D>& NewPositions);

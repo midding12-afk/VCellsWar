@@ -69,17 +69,22 @@ AMainGamePlayerState* AMainGameGameState::GetPlayerState(int32 PlayerIndex) cons
 
 void AMainGameGameState::OnRep_MapSeed()
 {
-	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, AllPlayerCount);
+	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, GetSumAllPortalsCount());
 }
 
 void AMainGameGameState::OnRep_MapSize()
 {
-	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, AllPlayerCount);
+	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, GetSumAllPortalsCount());
 }
 
 void AMainGameGameState::OnRep_AllPlayerCount()
 {
-	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, AllPlayerCount);
+	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, GetSumAllPortalsCount());
+}
+
+void AMainGameGameState::OnRep_AIPortalsCount()
+{
+	OnMapSeedReplicatedBP.Broadcast(MapSeed, MapSize, GetSumAllPortalsCount());
 }
 
 void AMainGameGameState::OnRep_AllNodesCountOnInit()

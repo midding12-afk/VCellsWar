@@ -64,6 +64,11 @@ public:
 	virtual void Server_SetStructureNetID_Implementation(int32 NewID) override {if (HasAuthority()) PortalId =  NewID;};
 	
 	void Server_SpawnWave(int32 Count);
+	
+	UPROPERTY()
+	class AAIGeneralDirector* EnemyAiDirector;
+	UPROPERTY()
+	TWeakObjectPtr<class UAISquad> LocalPortalSquad;
 private:
 	UServerNetworkPoolSubsystem* ServerPool;
 };

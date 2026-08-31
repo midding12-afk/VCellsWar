@@ -56,12 +56,24 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_MapSize, BlueprintReadOnly, Category = "Map")
 	int32 MapSize;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_AllPlayerCount, BlueprintReadOnly, Category = "Match Setup")
-	int32 AllPlayerCount = 2;
 	
 	UPROPERTY(ReplicatedUsing = OnRep_AllNodesCountOnInit, BlueprintReadOnly, Category = "Map")
 	int32 AllNodesCountOnInit = 0;
-
+	
+	UFUNCTION(BlueprintCallable)
+	int32 GetSumAllPortalsCount() {return AllPlayerCount + AIPortalsCount;}
+protected:
+	
+	UPROPERTY(ReplicatedUsing = OnRep_AllPlayerCount, BlueprintReadOnly, Category = "Match Setup")
+	int32 AllPlayerCount = 2;
+	
+	UPROPERTY(ReplicatedUsing = OnRep_AIPortalsCount, BlueprintReadOnly, Category = "Map")
+	int32 AIPortalsCount = 0;
+public:
+	
+	void SetAllPlayerCount(int32 NewAllPlayerCount) {AllPlayerCount = NewAllPlayerCount;}
+	void SetAIPortalsCount(int32 NewAIPortalsCount) {AIPortalsCount = NewAIPortalsCount;}
+	
 	UFUNCTION()
 	void OnRep_MapSeed();
 	
@@ -70,6 +82,9 @@ public:
 	
 	UFUNCTION()
 	void OnRep_AllPlayerCount(); 
+	
+	UFUNCTION()
+	void OnRep_AIPortalsCount(); 
 	
 	UFUNCTION()
 	void OnRep_AllNodesCountOnInit(); 

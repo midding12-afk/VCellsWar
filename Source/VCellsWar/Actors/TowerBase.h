@@ -19,10 +19,9 @@ class VCELLSWAR_API ATowerBase : public AStrategyEntityPawn, public IStructureNe
 public:	
 	// Sets default values for this actor's properties
 	ATowerBase();
-
-protected:
-	// Called when the game starts or when spawned
+	
 	virtual void BeginPlay() override;
+protected:	
 	
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "RTS | Logic")
 	int32 TowerId = -1;
@@ -70,4 +69,9 @@ public:
 	virtual void GeinDamage(float Damage, int32 InstigatorTeamID) override;
 	
 	bool IsTowerLockedNoConnection(int32 MyFactionId);
+	
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTowerFactionChanged, ATowerBase*, Tower, int32, NewFactionID);
+	
+	UPROPERTY(BlueprintAssignable, Category = "Lobby|UI")
+	FOnTowerFactionChanged OnTowerFactionChanged;
 };

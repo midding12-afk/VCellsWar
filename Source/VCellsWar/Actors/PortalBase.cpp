@@ -5,11 +5,15 @@
 
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "TroopBase.h"
 #include "Components/DecalComponent.h"
 #include "Components/SphereComponent.h"
 #include "VCellsWar/AI/StrategyAIController.h"
 #include "VCellsWar/GameMods/MainGameGameModeBase.h"
 #include "VCellsWar/GameMods/MainGameGameState.h"
+#include "VCellsWar/AI/AIOpponent/AIGeneralDirector.h"
+#include "VCellsWar/AI/AIOpponent/AIWarComponent.h"
+#include "VCellsWar/GameMods/MainGamePlayerController.h"
 
 // Sets default values
 APortalBase::APortalBase()
@@ -56,6 +60,17 @@ void APortalBase::BeginPlay()
 	
 	if (HasAuthority())
 	{
+		AMainGamePlayerState* PS = Execute_GetEntityOwnerState(this);
+		APlayerController* PC = PS->GetPlayerController();
+		if (PC)
+		{
+			if (AMainGamePlayerController* MPC = Cast<AMainGamePlayerController>(PC))
+			{
+				if (MPC->EnemyAiDirector)
+					EnemyAiDirector = MPC->EnemyAiDirector;
+			}
+		}
+		
 		AMainGameGameModeBase* GM = GetWorld()->GetAuthGameMode<AMainGameGameModeBase>();
 		
 		if (GM)
@@ -75,6 +90,9 @@ void APortalBase::BeginPlay()
 			GS->InvocLinksUpdate();
 		}		
 	}
+	
+	
+	
 }
 
 // Called every frame
@@ -167,56 +185,32 @@ void APortalBase::ExecuteWaveSpawn()
 			FVector RotatedForwardVec = RotationAroundZ.RotateVector(ForwardVec);
 		
 			FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation+RotatedForwardVec*150.f, FVector(1.0f, 1.0f, 1.0f));
-		
-			/*
-			AActor* SpawnedActor = ServerPool->GetActorFromNetworkPool(SoldierClass, SpawnTransform);
-			AStrategyEntityCharacter* Soldier = Cast<AStrategyEntityCharacter>(SpawnedActor);
-			 		
-			if (Soldier)
-			{
-				Soldier->SetEntityOwner(PS);			
-			
-			 	// Наращиваем счетчик поколения, чтобы убрать дергания у клиентов с пингом 500
-			 	Soldier->SpawnGeneration++;
-			 	
-			 	if (Soldier->GetController() == nullptr)
-			 	{
-			 		// Этот метод создаст класс контроллера, который указан у вас в Class Defaults (AStrategyAIController)
-			 		// и сразу же сделает ему Possess(Soldier) на стороне сервера!
-			 		Soldier->SpawnDefaultController(); 
-			 	}
-			 	
-			 	// Код выполняется на Сервере при рождении/активации юнита
-			 	// if (AAIController* AIC = Cast<AAIController>(Soldier->GetController()))
-			 	// {
-			 	// 	AIC->SetGenericTeamId(FGenericTeamId(GetGenericTeamId()));
-			 	// }
-				Soldier->SetGenericTeamId(FGenericTeamId(GetGenericTeamId()));
-				
-			 	ServerPool->FinishSpawningNetworkUnit(Soldier, SpawnTransform);
-			 	
-				Soldier->LaunchFromPortal(RotatedForwardVec);
-			}*/
 			
 			AActor* SpawnedActor = ServerPool->GetActorFromNetworkPool(SoldierClass, SpawnTransform, FGenericTeamId(GetGenericTeamId()), PS);
-			AStrategyEntityCharacter* Soldier = Cast<AStrategyEntityCharacter>(SpawnedActor);
+			ATroopBase* Soldier = Cast<ATroopBase>(SpawnedActor);
             
 			if (Soldier)
 			{
-				// Перезаписываем финальные параметры поверх инициализированной памяти
-				//Soldier->SetEntityOwner(PS);      
+				// Перезаписываем финальные параметры поверх инициализированной памяти     
 				Soldier->SetOwner(PC);
 				
 				if (AAIController* AIC = Cast<AAIController>(Soldier->GetController()))
 				{
 					AIC->SetOwner(PC);
 				}
-	
-				// Насильно прописываем честную фракцию портала внутрь ИИ-контроллера и кэша тела! 
-				//Soldier->SetGenericTeamId(FGenericTeamId(GetGenericTeamId()));
     
 				// Выталкиваем полностью готового к баллистическому полету юнита из ворот!
 				Soldier->LaunchFromPortal(RotatedForwardVec);
+				
+				if (EnemyAiDirector && EnemyAiDirector->WarComponent)
+				{
+					if (!LocalPortalSquad.IsValid()) LocalPortalSquad = EnemyAiDirector->WarComponent->CreateNewSquad(EAISquadRole::PortalSquad, GetActorLocation());
+					
+					if (LocalPortalSquad.IsValid())
+					{
+						LocalPortalSquad->AddMember(Soldier);
+					}
+				}
 			}
 		}
 	}	

@@ -103,7 +103,7 @@ TArray<FVoronoiGraphEdge> UVoronoiSubsystem::GetVoronoiEdgesForMapSize()
         FVector2D PolyStart = MapPoly[i];
         FVector2D PolyB   = MapPoly[i + 1];
 
-        // Прогоняем вершины красной рамки через ТВОЮ ИДЕАЛЬНУЮ математику экрана:
+        // Прогоняем вершины красной рамки через математику экрана:
         float PolyStartScreenX = (PolyStart.Y / CurrentWorldMapSize) * 256.0f;
         float PolyStartScreenY = (1.f - PolyStart.X / CurrentWorldMapSize) * 256.0f;
         
@@ -649,7 +649,7 @@ TArray<FVector2D> UVoronoiSubsystem::GenerateMapBoundaryVertices()
     if (!GS) return Vertices;
     
     float MapSize = GS->MapSize; 
-    int32 NumPlayers = GS->AllPlayerCount;    
+    int32 NumPlayers = GS->GetSumAllPortalsCount();    
     
     int32 NumVertices = NumPlayers * 2;
     if (NumVertices < 4) NumVertices = 4;
@@ -661,7 +661,7 @@ TArray<FVector2D> UVoronoiSubsystem::GenerateMapBoundaryVertices()
     float AngleStep = (2.0f * PI) / NumVertices;
 	
     // Корректируем начальный поворот (например, на PI/4 для ромба при 2 игроках)
-    float StartAngleOffset = -PI / 2.0f;//(NumPlayers == 2) ? (PI / 4.0f) : 0.0f;
+    float StartAngleOffset = 0.f;//-PI / 2.0f;//(NumPlayers == 2) ? (PI / 4.0f) : 0.0f;
 
     for (int32 i = 0; i <= NumVertices; ++i)
     {

@@ -85,6 +85,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "RTS|Flag")
 	void SetFlagMoveMode(ATacticalFlagBase* Flag);
+	
+	UPROPERTY()
+	class AAIGeneralDirector* EnemyAiDirector;
 
 private:
 

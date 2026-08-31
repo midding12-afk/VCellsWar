@@ -30,13 +30,16 @@ public:
 	int32 NodesPerPlayer = 3;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Match Setup")
-	int32 AllPlayerCount = 2;
+	int32 AllPlayerCount = 1;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Match Setup")
 	int32 MapSeed = 0;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Match Setup")
-	int32 MapSize = 50000;
+	int32 MapSize = 25000;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Match Setup")
+	int32 AIPortalsCount = 1;
 	
 	/*UPROPERTY(BlueprintReadWrite, Category = "Match Statistics")
 	TArray<FPlayerMatchStats> EndGameScores;*/

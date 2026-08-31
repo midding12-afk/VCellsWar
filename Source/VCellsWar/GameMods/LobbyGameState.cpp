@@ -20,6 +20,8 @@ void ALobbyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME_CONDITION_NOTIFY(ALobbyGameState, MapSeed, COND_None, REPNOTIFY_Always);
 	
 	DOREPLIFETIME_CONDITION_NOTIFY(ALobbyGameState, MapSize, COND_None, REPNOTIFY_Always);
+	
+	DOREPLIFETIME_CONDITION_NOTIFY(ALobbyGameState, AIPortalsCount, COND_None, REPNOTIFY_Always);
 }
 
 void ALobbyGameState::SetNodeCount(int32 NewCount)
@@ -56,6 +58,14 @@ void ALobbyGameState::SetMapSize(int32 NewSize)
 	}
 }
 
+void ALobbyGameState::SetAIPortalsCount(int32 NewCount)
+{
+	if (HasAuthority())
+	{
+		AIPortalsCount = NewCount;
+	}
+}
+
 void ALobbyGameState::OnRep_NodeCount()
 {
 	// Этот код выполнится на компьютерах ВСЕХ игроков, когда число нод изменится
@@ -70,6 +80,11 @@ void ALobbyGameState::OnRep_MapSeed()
 void ALobbyGameState::OnRep_MapSize()
 {
 	OnMapSizeChangedBP.Broadcast(MapSize);
+}
+
+void ALobbyGameState::OnRep_AIPortalsCount()
+{
+	OnAIPortalsCountChangedBP.Broadcast(AIPortalsCount);
 }
 
 void ALobbyGameState::UpdateNodePositions(const TArray<FVector2D>& NewPositions)

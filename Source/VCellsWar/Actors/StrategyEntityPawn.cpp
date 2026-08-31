@@ -191,7 +191,7 @@ void AStrategyEntityPawn::SetEntityOwner_Internal(AMainGamePlayerState* NewOwner
 {	
 	OwningPlayerState = NewOwnerState;
 
-	OwningPlayerColor = OwningPlayerState ? OwningPlayerState->GetTeamColor(): FLinearColor::Gray;
+	OwningPlayerColor = OwningPlayerState ? OwningPlayerState->GetTeamColor(): FLinearColor::Gray*0.3;
 	
 	GridTrackingComponent->DeinitializeGridTracking();
 	

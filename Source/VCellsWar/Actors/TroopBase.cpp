@@ -2,11 +2,16 @@
 
 
 #include "TroopBase.h"
+
+#include "VCellsWar/AI/AIOpponent/AISquad.h"
 #include "VCellsWar/Systems/ServerNetworkPoolSubsystem.h"
 
 void ATroopBase::GeinDamage(float Damage, int32 InstigatorTeamID)
 {
 	if (!HasAuthority()) return;
+	
+	if (FMath::FRand()<0.5f) return; //TODO %armor from PC GAS
+	
 	Super::GeinDamage(Damage, InstigatorTeamID);
 	
 	NativeRTSDeinitialize();
@@ -15,6 +20,11 @@ void ATroopBase::GeinDamage(float Damage, int32 InstigatorTeamID)
 	if (ServerPool)
 	{
 		ServerPool->ReturnActorToNetworkPool(this);
+	}
+	
+	if (MyAISquad)
+	{
+		MyAISquad->Server_NotifyMemberDeath(SquadLocalIndex);
 	}
 }
 

@@ -4,6 +4,7 @@
 #include "MultiplayerSessionSubsystem.h"
 
 #include "OnlineSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 #include "Online/OnlineSessionNames.h"
 
 UMultiplayerSessionSubsystem::UMultiplayerSessionSubsystem()
@@ -38,7 +39,13 @@ bool UMultiplayerSessionSubsystem::CheckSubsystem()
 
 void UMultiplayerSessionSubsystem::CreateSession(int MaxPlayerCount)
 {
-	if (!OnlineSessionPtr.IsValid()) return;
+	if (!OnlineSessionPtr.IsValid())
+	{//старт сингл сессии
+		FString Options = TEXT("?Name=Player");
+		UGameplayStatics::OpenLevel(GetWorld(), FName("L_LobbyScreen"), true, Options);
+		//GetWorld()->ServerTravel(TEXT("/Game/VCellsWar/Maps/L_LobbyScreen"), true);
+		return;
+	}
 
 
 	// 1. Проверяем, существует ли уже сессия, и удаляем её
