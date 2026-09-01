@@ -23,29 +23,18 @@ public:
 	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	void ExecuteWaveSpawn(int32 TroopsCount);
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	UPROPERTY(ReplicatedUsing = OnRep_NextSpawnTime, BlueprintReadOnly, Category = "RTS | Logic")
-	float NextSpawnTime = 0.0f;
-	
-	UPROPERTY(ReplicatedUsing = OnRep_NextSpawnTime, EditAnywhere, BlueprintReadOnly, Category = "RTS | Logic")
-	float BaseSpawnDelay = 30.0f;
-
-	UFUNCTION()
-	void OnRep_NextSpawnTime();
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RTS | Logic")
 	TSubclassOf<AStrategyEntityCharacter> SoldierClass;
 	
 	FTimerHandle WaveSpawnTimerHandle;
 	
-	// Внутренний метод сервера, который заводит следующий цикл и считает GAS модификаторы
-	void ScheduleNextWave();
-
-	// Физическая функция спавна, которая дергает серверный пул
-	void ExecuteWaveSpawn();
 	
 	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
 	TObjectPtr<USphereComponent> SphereComponent;
@@ -53,9 +42,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	
-	void Server_SetNextSpawnDelay(float DelaySeconds);
-	
-	float GetNextSpawnTime() { return NextSpawnTime; }
+	//float GetNextSpawnTime() { return NextSpawnTime; }
 	
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "RTS | Logic")
 	int32 PortalId = -1;
@@ -63,7 +50,6 @@ public:
 	virtual int32 GetStructureNetID_Implementation() override {return PortalId;};
 	virtual void Server_SetStructureNetID_Implementation(int32 NewID) override {if (HasAuthority()) PortalId =  NewID;};
 	
-	void Server_SpawnWave(int32 Count);
 	
 	UPROPERTY()
 	class AAIGeneralDirector* EnemyAiDirector;

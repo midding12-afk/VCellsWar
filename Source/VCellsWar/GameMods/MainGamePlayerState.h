@@ -8,6 +8,13 @@
 #include "GameFramework/PlayerState.h"
 #include "MainGamePlayerState.generated.h"
 
+
+UENUM(BlueprintType)
+enum class EPortalSpawnMode : uint8
+{
+	ToWorld,         // Выдавать солдат физически на карту
+	ToVirtualBuffer  // Направлять поток в виртуальный буфер подпространства
+};
 /**
  * 
  */
@@ -28,16 +35,8 @@ public:
 	virtual void SetGenericTeamId(const FGenericTeamId& TeamID) override {TeamIndex = TeamID;}
 	
 	virtual FGenericTeamId GetGenericTeamId() const override { return TeamIndex; }
-	
-	// Реализуем обязательный C++ метод интерфейса GAS
-	UFUNCTION(BlueprintCallable, Category = "RTS | GAS")
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-	
-	UFUNCTION(BlueprintCallable, Category = "RTS | Combat | GAS")
-	void SetGASAvatarForSoldier(AActor* SoldierAvatar);
 
-	// Выносим выдачу способностей в отдельный чистый метод
-	void Override_GiveFactionDefaultAbilities();
+	
 	
 protected:
 	UPROPERTY(ReplicatedUsing = OnRep_TeamColor, BlueprintReadOnly, Category = "Strategy | Player")
@@ -49,15 +48,62 @@ protected:
 	UPROPERTY(Replicated)
 	FGenericTeamId TeamIndex;
 	
-	// Объявляем сам компонент. В RTS он живет строго на сервере и реплицируется клиентам
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RTS | GAS", meta = (AllowPrivateAccess = "true"))
-	UAbilitySystemComponent* AbilitySystemComponent;
 
 	virtual void BeginPlay() override;
 
-	// СВЯЩЕННЫЙ МАССИВ RTS-СПОСОБНОСТЕЙ ИГРОКА:
-	// Сюда мы выберем нашу GA_BlasterAttack, а также будущие апгрейды и технологии
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RTS | GAS")
-	TArray<TSubclassOf<class UGameplayAbility>> FactionDefaultAbilities;
+	////////////////////////////////////////////////////////
+	///		GAS
+	////////////////////////////////////////////////////////
+public:
+	// Реализация интерфейса системы способностей Unreal Engine
+	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
+	FORCEINLINE class URTSAttributeSet* GetRTSAttributeSet() const { return RTSAttributeSet; }
+	FORCEINLINE EPortalSpawnMode GetPortalSpawnMode() const { return CurrentSpawnMode; }
+
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "RTS | Economy")
+	void Server_SetPortalSpawnMode(EPortalSpawnMode NewMode);
+	
+	/** Возвращает суммарное производство энергии всеми генераторами */
+	UFUNCTION(BlueprintCallable, Category = "RTS | Energy")
+	float GetTotalEnergyProduction() const;
+
+	/** Возвращает суммарное потребление энергии всеми домиками/турелями */
+	UFUNCTION(BlueprintCallable, Category = "RTS | Energy")
+	float GetTotalEnergyConsumption() const;
+
+	/** Проверка: Перегружена ли сеть прямо сейчас? (Расход > Выработки) */
+	UFUNCTION(BlueprintCallable, Category = "RTS | Energy")
+	bool IsPowerGridOverloaded() const;
+	
+	void OnVirtualTroopsAttributeChanged(const struct FOnAttributeChangeData& Data);
+	
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTroopsInBufferCountChanged, int32, TroopsInBufferCount);
+	
+	UPROPERTY(BlueprintAssignable, Category = "Lobby|UI")
+	FOnTroopsInBufferCountChanged OnTroopsInBufferCountChanged;
+	
+	// Нативный OnRep метод движка для PlayerState. На КЛИЕНТАХ он гарантированно 
+	// срабатывает, когда данные игрока отреплицировались.
+	virtual void OnRep_PlayerId() override;
+
+
+private:
+	/** Вспомогательный метод, чтобы не дублировать код подписки */
+	void BindGASAttributeCallbacks();
+
+protected:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RTS | GAS")
+	class UAbilitySystemComponent* AbilitySystemComponent;
+
+	UPROPERTY()
+	class URTSAttributeSet* RTSAttributeSet;
+
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "RTS | Economy")
+	EPortalSpawnMode CurrentSpawnMode = EPortalSpawnMode::ToWorld;
+	
+	////////////////////////////////////////////////////////
+	///		/GAS
+	////////////////////////////////////////////////////////
 };

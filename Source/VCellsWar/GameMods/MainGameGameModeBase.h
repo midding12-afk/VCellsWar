@@ -71,7 +71,12 @@ protected:
 	APortalBase* SpawnNewPortal(AController* NewPlayer);
 	
 	int32 PlayerSpawnedPortalsCounter = 0;
+	
+	FTimerHandle EconomyTimerHandle;
 private:
+	
+	void Server_TickEconomyCycle();
+	
 	// Чистые C++ массивы указателей. Поскольку GameMode живет только на сервере,
 	// макрос UPROPERTY() нужен здесь ТОЛЬКО для того, чтобы сборщик мусора (Garbage Collector) 
 	// случайно не удалил эти объекты из памяти. Репликация здесь НЕ ВКЛЮЧАЕТСЯ.

@@ -48,8 +48,6 @@ void APortalBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
-	DOREPLIFETIME(APortalBase, NextSpawnTime);
-	DOREPLIFETIME(APortalBase, BaseSpawnDelay);
 	DOREPLIFETIME(APortalBase, PortalId);
 }
 
@@ -80,7 +78,7 @@ void APortalBase::BeginPlay()
 		
 		ServerPool = GetWorld()->GetSubsystem<UServerNetworkPoolSubsystem>();
 		
-		ExecuteWaveSpawn();
+		ExecuteWaveSpawn(10);
 	}
 	else
 	{
@@ -91,8 +89,6 @@ void APortalBase::BeginPlay()
 		}		
 	}
 	
-	
-	
 }
 
 // Called every frame
@@ -102,68 +98,12 @@ void APortalBase::Tick(float DeltaTime)
 
 }
 
-void APortalBase::Server_SetNextSpawnDelay(float DelaySeconds)
-{
-	if (HasAuthority())
-	{
-		// Берем точную текущую секунду сервера и прибавляем задержку
-		NextSpawnTime = GetWorld()->GetTimeSeconds() + DelaySeconds;
-		
-		// На хосте вызываем OnRep вручную для обновления локального UI
-		OnRep_NextSpawnTime();
-	}
-}
-
-void APortalBase::OnRep_NextSpawnTime()
-{
-	// Сеть доставила клиенту точную секунду спавна.
-	// Здесь можно просто пнуть HUD, чтобы он обновил текст таймера.
-	
-	//GetServerWorldTimeSeconds();
-}
-
-void APortalBase::ScheduleNextWave()
-{
-	if (!HasAuthority() || !GetWorld()) return;
-
-	// 1. По умолчанию берем базовую задержку
-	float FinalDelay = BaseSpawnDelay;
-
-	// 2. ИНТЕГРАЦИЯ С GAS (Из прошлых шагов): Проверяем, есть ли у владельца баффы на скорость спавна
-	// Используем интерфейс или каст, который мы настраивали для GetEntityOwnerState()
-	// В данном примере пишем через каст к нашему PlayerState:
-	/*
-	AMainGamePlayerState* RTSPlayerState = Cast<AMainGameState>(Execute_GetEntityOwnerState(this));
-	if (RTSPlayerState && RTSPlayerState->GetAbilitySystemComponent())
-	{
-		// Считываем GAS-модификатор скорости из набора атрибутов игрока
-		float Modifier = RTSPlayerState->GetAbilitySystemComponent()->GetNumericAttribute(URTSAttributeSet::GetSpawnCooldownModifierAttribute());
-		FinalDelay *= Modifier; // Если модификатор 0.8, то 30 сек превратятся в 24 сек!
-	}
-	*/
-
-	// 3. Записываем точную будущую секунду матча в реплицируемую переменную.
-	// Клиентский Blueprint UI подхватит это число через GetServerWorldTimeSeconds() без спама пакетами!
-	NextSpawnTime = GetWorld()->GetTimeSeconds() + FinalDelay;
-
-	// 4. Взводим чистый серверный C++ таймер на эту задержку
-	GetWorldTimerManager().SetTimer(
-		WaveSpawnTimerHandle,
-		this,
-		&APortalBase::ExecuteWaveSpawn,
-		FinalDelay,
-		false // Галочку Looping НЕ ставим, так как задержка на следующей волне может измениться из-за GAS баффов!
-	);
-}
-
-void APortalBase::ExecuteWaveSpawn()
+void APortalBase::ExecuteWaveSpawn(int32 TroopsCount)
 {
 	if (!HasAuthority() || !SoldierClass) return;
 
 	// Получаем нашу изолированную серверную подсистему пула объектов
 	//UServerNetworkPoolSubsystem* ServerPool = GetWorld()->GetSubsystem<UServerNetworkPoolSubsystem>();
-	
-	
 	
 	if (ServerPool)
 	{
@@ -174,8 +114,7 @@ void APortalBase::ExecuteWaveSpawn()
 		FVector ForwardVec = GetActorForwardVector();
 		FVector SpawnLocation = GetActorLocation();
 		
-		//TODO with GAS
-		int32 Count = 10;	
+		int32 Count = TroopsCount;	
 		for (int Index = 0; Index < Count; Index++)
 		{
 			float AngleDegrees = 360.f/Count * Index;
@@ -215,8 +154,6 @@ void APortalBase::ExecuteWaveSpawn()
 		}
 	}	
 
-	// Волна выпущена! Запускаем расчет времени для следующей волны
-	ScheduleNextWave();
 }
 
 

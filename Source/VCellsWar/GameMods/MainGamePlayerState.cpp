@@ -5,47 +5,65 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayAbilitySpec.h"
 #include "Net/UnrealNetwork.h"
+#include "VCellsWar/GAS/RTSAttributeSet.h"
 
 AMainGamePlayerState::AMainGamePlayerState()
 {
-	// 1. Создаем единственный компонент GAS в памяти игрока
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
-	
-	// Настраиваем сетевой режим репликации под RTS (Минимальный трафик)
 	AbilitySystemComponent->SetIsReplicated(true);
-	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+
+	RTSAttributeSet = CreateDefaultSubobject<URTSAttributeSet>(TEXT("RTSAttributeSet"));
 }
 
 void AMainGamePlayerState::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// Инициализируем GAS на сервере
-	if (HasAuthority() && AbilitySystemComponent)
+	
+	if (HasAuthority() && AbilitySystemComponent && RTSAttributeSet)
 	{
-		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		AbilitySystemComponent->InitAbilityActorInfo(this, GetOwner());
 		
-		// 💥 RTS СЕТЕВОЙ ФИКС: 
-		// Если это ЛИСТЕН-СЕРВЕР (Хост, Игрок 0), его данные валидны СРАЗУ. Выдаем пакет способностей!
-		/*if (GetWorld() && (GetWorld()->IsNetMode(NM_ListenServer) || GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->PlayerState == this))
-		{
-			Override_GiveFactionDefaultAbilities();
-		}*/
 	}
+	
+	// Пробуем подписаться (сработает на сервере/хосте)
+	BindGASAttributeCallbacks();
 }
 
 
-void AMainGamePlayerState::Override_GiveFactionDefaultAbilities()
+// === ЛОГИКА ДЛЯ СЕТЕВЫХ КЛИЕНТОВ (КОГДА ДАННЫЕ ПРИЛЕТЕЛИ ПО СЕТИ) ===
+void AMainGamePlayerState::OnRep_PlayerId()
 {
-	// Метод вызывается строго на сервере в момент полной готовности данных фракции
-	if (!HasAuthority() || !AbilitySystemComponent) return;
+	Super::OnRep_PlayerId();
 
-	for (const TSubclassOf<UGameplayAbility>& AbilityClass : FactionDefaultAbilities)
+	if (AbilitySystemComponent)
 	{
-		if (AbilityClass)
+		// Связываем GAS на стороне клиента с его локальным контроллером-владельцем
+		AbilitySystemComponent->InitAbilityActorInfo(this, GetOwner());
+		
+		// Данные долетели — привязываем колбэки интерфейса!
+		BindGASAttributeCallbacks();
+	}
+}
+
+void AMainGamePlayerState::BindGASAttributeCallbacks()
+{
+	// Проверяем, что компоненты GAS и атрибутов физически существуют в памяти на этой машине
+	if (AbilitySystemComponent && RTSAttributeSet)
+	{
+		// Очищаем старые привязки, чтобы не плодить дубликаты при ServerTravel
+		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(URTSAttributeSet::GetVirtualTroopsReserveAttribute()).RemoveAll(this);
+
+		// Вешаем C++ колбэк на изменение пула солдат
+		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(URTSAttributeSet::GetVirtualTroopsReserveAttribute())
+			.AddUObject(this, &AMainGamePlayerState::OnVirtualTroopsAttributeChanged);
+
+		// Мягкий пинок для GUI: сразу бродкастим стартовое значение, чтобы виджет не был пустым при загрузке карты
+		float CurrentVal = RTSAttributeSet->GetVirtualTroopsReserve();
+		if (OnTroopsInBufferCountChanged.IsBound())
 		{
-			FGameplayAbilitySpec AbilitySpec(AbilityClass, 1);
-			AbilitySystemComponent->GiveAbility(AbilitySpec);
+			OnTroopsInBufferCountChanged.Broadcast(FMath::TruncToInt(CurrentVal));
 		}
 	}
 }
@@ -55,6 +73,7 @@ void AMainGamePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
 	DOREPLIFETIME_CONDITION_NOTIFY(AMainGamePlayerState, TeamColor, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME(AMainGamePlayerState, CurrentSpawnMode);
 }
 
 FLinearColor AMainGamePlayerState::GetTeamColor() const
@@ -78,15 +97,42 @@ UAbilitySystemComponent* AMainGamePlayerState::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
-void AMainGamePlayerState::SetGASAvatarForSoldier(AActor* SoldierAvatar)
+void AMainGamePlayerState::Server_SetPortalSpawnMode_Implementation(EPortalSpawnMode NewMode)
 {
-	if (AbilitySystemComponent && IsValid(SoldierAvatar))
+	if (!HasAuthority()) return;
+	
+	CurrentSpawnMode = NewMode;
+}
+
+float AMainGamePlayerState::GetTotalEnergyProduction() const
+{
+	return RTSAttributeSet ? RTSAttributeSet->GetMaxEnergy() : 0.0f;
+}
+
+float AMainGamePlayerState::GetTotalEnergyConsumption() const
+{
+	return RTSAttributeSet ? RTSAttributeSet->GetCurrentEnergy() : 0.0f;
+}
+
+bool AMainGamePlayerState::IsPowerGridOverloaded() const
+{
+	if (!RTSAttributeSet) return false;
+	// Сеть перегружена, если Текущее потребление превысило Максимальную выработку
+	return RTSAttributeSet->GetCurrentEnergy() > RTSAttributeSet->GetMaxEnergy();
+}
+
+void AMainGamePlayerState::OnVirtualTroopsAttributeChanged(const FOnAttributeChangeData& Data)
+{
+	// Data.NewValue — это новое float-значение, которое только что записалось в атрибут
+	int32 TotalTroopsInt = FMath::TruncToInt(Data.NewValue);
+
+	// Активируем ваш делегат! Сигнал мгновенно улетает в Блюпринт вашего GUI
+	if (OnTroopsInBufferCountChanged.IsBound())
 	{
-		// Передаем себя (PlayerState) как постоянного владельца экономики и тегов,
-		// а в качестве Аватара (физического воплощения) подставляем нашего солдата!
-		AbilitySystemComponent->InitAbilityActorInfo(this, SoldierAvatar);
+		OnTroopsInBufferCountChanged.Broadcast(TotalTroopsInt);
 	}
 }
+
 
 
 

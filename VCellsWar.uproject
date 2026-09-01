@@ -13,7 +13,8 @@
 				"CoreUObject",
 				"DeveloperSettings",
 				"AIModule",
-				"UMG"
+				"UMG",
+				"GameplayAbilities"
 			]
 		}
 	],

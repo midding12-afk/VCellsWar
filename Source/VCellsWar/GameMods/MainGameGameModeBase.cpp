@@ -17,6 +17,7 @@
 #include "Engine/OverlapResult.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "VCellsWar/AI/AIOpponent/AIGeneralDirector.h"
+#include "VCellsWar/GAS/RTSAttributeSet.h"
 
 void AMainGameGameModeBase::BeginPlay()
 {
@@ -75,18 +76,46 @@ void AMainGameGameModeBase::BeginPlay()
 		return ETeamAttitude::Hostile;
 	});
 	
-	APlayerController* HostController = GetWorld()->GetFirstPlayerController();
+	/*APlayerController* HostController = GetWorld()->GetFirstPlayerController();
 	
 	if (HostController && HostController->IsLocalController())
 	{		
 		// Принудительно вызываем наш метод спавна портала для игрока-хоста
 		SpawnNewPortal(HostController);
+	}*/
+	
+	APlayerController* RealHostController = nullptr;
+
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		
+		// ЗОЛОТОЕ ПРАВИЛО СЕТЕВОГО КОДА UE: 
+		// Если контроллер валиден, но у него НЕТ сетевого соединения (GetNetConnection() == nullptr) — 
+		// это со 100% гарантией сам ХОСТ (серверный игрок) матча!
+		if (PC && IsValid(PC) && PC->GetNetConnection() == nullptr)
+		{
+			RealHostController = PC;
+			break; // Нашли хоста, выходим из цикла
+		}
 	}
+
+	// Если хост найден (а при старте из лобби или сингла он там гарантированно есть) — спавним ему портал!
+	if (RealHostController)
+	{
+		SpawnNewPortal(RealHostController);
+	}
+	
 	
 	if (HasAuthority() && Stats->AIPortalsCount > 0)
 	{
 		// Инициализируем ИИ-врага
 		Server_InitializeAiOpponent(216);
+	}
+	
+	if (HasAuthority())
+	{
+		GetWorldTimerManager().SetTimer(EconomyTimerHandle, this, &AMainGameGameModeBase::Server_TickEconomyCycle, 30.0f, true);
 	}
 }
 
@@ -105,7 +134,6 @@ void AMainGameGameModeBase::GenericPlayerInitialization(AController* NewPlayer)
 			if (PS)
 			{
 				GS->AddTeamIDColor(PS->GetGenericTeamId(),PS->GetTeamColor());
-				PS->Override_GiveFactionDefaultAbilities();
 			}
 		}
 		
@@ -340,7 +368,7 @@ APortalBase* AMainGameGameModeBase::SpawnNewPortal(AController* NewPlayer)
 			{
 				DeferredPortal->NativeRTSInitialize(PS->GetGenericTeamId(), PS, SpawnTransform);
 				//DeferredPortal->SetEntityOwner(PS);
-				DeferredPortal->Server_SetNextSpawnDelay(0.f);
+				
 				//DeferredPortal->SetGenericTeamId(PS->GetGenericTeamId());
 				IStructureNetIDInterface::Execute_Server_SetStructureNetID(DeferredPortal, LinkedStructuresCounter);
 				UGameplayStatics::FinishSpawningActor(DeferredPortal, SpawnTransform);
@@ -651,4 +679,44 @@ void AMainGameGameModeBase::ResizeNavMeshBoundsVolume(ANavMeshBoundsVolume* Volu
 	}
 }
 
+void AMainGameGameModeBase::Server_TickEconomyCycle()
+{
+	// Жесткая защита: если на карте физически нет порталов — считать нечего
+	if (ActivePortals.Num() == 0) return;
+
+	// Прокатываемся по каждому активному порталу на карте (человек + ИИ)
+	for (APortalBase* Portal : ActivePortals)
+	{
+		if (!Portal || !IsValid(Portal)) continue;
+
+		// Достаем PlayerState фракции-владельца этого конкретного портала
+		AMainGamePlayerState* PS = IStrategyEntityInterface::Execute_GetEntityOwnerState(Portal); //Portal->GetEntityOwnerState(); // Используем ваш геттер владельца
+		if (!PS || !PS->GetRTSAttributeSet()) continue;
+
+		URTSAttributeSet* Attributes = PS->GetRTSAttributeSet();
+
+		// Извлекаем фракционный модифицированный GAS-атрибут.
+		// Если базовое значение 10, а домики дали +5, то для КАЖДОГО портала Income будет равен 15!
+		float Income = Attributes->GetTroopIncomePerCycle();
+		int32 FinalTroopCount = FMath::TruncToInt(Income);
+
+		if (FinalTroopCount <= 0) continue;
+
+		// Проверяем авторитарный GAS-рубильник направления спавна у этой фракции
+		if (PS->GetPortalSpawnMode() == EPortalSpawnMode::ToVirtualBuffer)
+		{
+			// СЦЕНАРИЙ А: Поток солдат уходит в виртуальный буфер подпространства GAS.
+			// Напрямую на сервере прибавляем доход этого портала к общему пулу фракции
+			float CurrentReserve = Attributes->GetVirtualTroopsReserve();
+			Attributes->SetVirtualTroopsReserve(CurrentReserve + FinalTroopCount);
+			
+		}
+		else
+		{
+			// СЦЕНАРИЙ Б: Физический спавн солдат в мир.
+			// Командуем конкретно этому порталу материализовать ровно его пачку солдат из пула объектов!
+			Portal->ExecuteWaveSpawn(FinalTroopCount);
+		}
+	}
+}
 

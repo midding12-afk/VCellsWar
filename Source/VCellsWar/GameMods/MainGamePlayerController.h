@@ -89,6 +89,9 @@ public:
 	UPROPERTY()
 	class AAIGeneralDirector* EnemyAiDirector;
 
+	UFUNCTION(BlueprintCallable, Category = "RTS|Flag")
+	void SetSpawnMode(EPortalSpawnMode SM);
+	
 private:
 
 	/** МЕТОД 2: Бесконечный двунаправленный конвейер логистических цепей флагов */
@@ -154,4 +157,6 @@ protected:
 	void OnLeftClickStarted(const FInputActionValue& Value);
 	void OnLeftClickCompleted(const FInputActionValue& Value);
 	void OnRightClickPressed(const FInputActionValue& Value);
+	
+	
 };

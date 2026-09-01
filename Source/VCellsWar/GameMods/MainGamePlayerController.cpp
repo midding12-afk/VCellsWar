@@ -548,6 +548,15 @@ void AMainGamePlayerController::SetFlagMoveMode(ATacticalFlagBase* Flag)
 	MovableFlag = Flag;
 }
 
+void AMainGamePlayerController::SetSpawnMode(EPortalSpawnMode SM)
+{
+	AMainGamePlayerState* PS = Cast<AMainGamePlayerState>(PlayerState);
+	if (!PS) return;
+	
+	PS->Server_SetPortalSpawnMode(SM);
+}
+
+
 void AMainGamePlayerController::HandleChainPlacement(ATacticalFlagBase* ClickedFlag, const FVector& Location, const FPlacementBuildingData& BuildingData)
 {
 	TSubclassOf<AActor> ClassToSpawn = BuildingData.RealServerBuildingClass;
@@ -623,3 +632,4 @@ void AMainGamePlayerController::ReplaceTempLastActiveChainNode(ATacticalFlagBase
 		LastActiveChainNode = NewFlag;
 	}
 }
+
